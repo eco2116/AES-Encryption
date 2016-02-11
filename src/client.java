@@ -10,11 +10,7 @@ public class client {
     public final static int SOCKET_PORT = 13267;      // you may change this
     public final static String SERVER = "127.0.0.1";  // localhost
     public final static String
-            FILE_TO_SEND = "test.txt";  // you may change this, I give a
-    // different name because i don't want to
-    // overwrite the one used by server...
-
-
+            FILE_TO_SEND = "test.txt";
 
     public static void main (String[] args) {
 
@@ -35,59 +31,45 @@ public class client {
 //        String address = validateIP(args[2]);
 //        int port = validatePort(args[3]);
 
-        FileInputStream fis = null;
-        BufferedInputStream bis = null;
-        OutputStream os = null;
-        ServerSocket servsock = null;
-        Socket sock = null;
+        Socket socket = connectToServer();
+        sendFile(socket);
+    }
 
-        System.out.println("Connecting...");
+    private static Socket connectToServer() {
+        Socket sock = null;
         try {
+            System.out.println("Connecting...");
+            // Make a connection to the server socket
             sock = new Socket(SERVER, SOCKET_PORT);
+            System.out.println("Accepted connection : " + sock);
         } catch(IOException e) {
             failWithMessage("Failed to create socket.");
         }
+        return sock;
+    }
 
-        System.out.println("Accepted connection : " + sock);
-
-        // send file
-        File myFile = new File(FILE_TO_SEND);
-        byte[] mybytearray = new byte[(int) myFile.length()];
-
+    private static void sendFile(Socket socket) {
+        FileInputStream fis = null;
+        BufferedInputStream bis = null;
+        OutputStream os;
         try {
+            // Send file to server
+            File myFile = new File(FILE_TO_SEND);
+            byte[] mybytearray = new byte[(int) myFile.length()];
             fis = new FileInputStream(myFile);
-        } catch (FileNotFoundException e) {
-            failWithMessage("File not found by name " + FILE_TO_SEND, fis, bis, sock, servsock);
-        }
-
-        bis = new BufferedInputStream(fis);
-
-        try {
+            bis = new BufferedInputStream(fis);
             bis.read(mybytearray, 0, mybytearray.length);
-        } catch (IOException e) {
-            failWithMessage("Failed to read buffered input stream.", fis, bis, sock, servsock);
-        }
-
-        try {
-            os = sock.getOutputStream();
-        } catch (IOException e) {
-            failWithMessage("Failed to get output stream from socket.");
-        }
-
-        System.out.println("Sending " + FILE_TO_SEND + "(" + mybytearray.length + " bytes)");
-
-        try {
+            os = socket.getOutputStream();
+            System.out.println("Sending " + FILE_TO_SEND + "(" + mybytearray.length + " bytes)");
             os.write(mybytearray, 0, mybytearray.length);
-        } catch (IOException e) {
-            failWithMessage("Failed to write to output stream.");
-        }
-
-        try {
             os.flush();
+        } catch (FileNotFoundException e) {
+            failWithMessage("File not found by name " + FILE_TO_SEND);
         } catch (IOException e) {
-            failWithMessage("Failed to flush output stream.");
+            failWithMessage("Failed to send file to server.");
+        } finally {
+            closeStreamsAndSocket(fis, bis, socket);
         }
-
         System.out.println("Done.");
     }
 
@@ -123,25 +105,16 @@ public class client {
         return port;
     }
 
-    private static void failWithMessage(String msg, FileInputStream fis, BufferedInputStream bis, Socket sock, ServerSocket serverSock) {
-        System.out.println("Client-side error encountered.");
-        System.out.println(msg);
-        closeStreamsAndSocket(fis, bis, sock, serverSock);
-        System.exit(0);
-    }
-
     private static void failWithMessage(String msg) {
         System.out.println("Client-side error encountered.");
         System.out.println(msg);
-        System.exit(0);
     }
 
-    private static void closeStreamsAndSocket(FileInputStream fis, BufferedInputStream bis, Socket sock, ServerSocket servSock) {
+    private static void closeStreamsAndSocket(FileInputStream fis, BufferedInputStream bis, Socket sock) {
         try {
             if (fis != null) fis.close();
             if (bis != null) bis.close();
             if (sock != null) sock.close();
-            if (servSock != null) servSock.close();
         } catch(IOException e) {
             failWithMessage("Failed to close streams and sockets.");
         }
