@@ -2,6 +2,7 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 
@@ -27,9 +28,42 @@ public class server {
 //        String trustedMode = validateTrustMode(args[1]);
 
         Socket socket = acceptSocket();
+
+        // Generate or use existing public / private keys
+        File pubFile = new File("server_public.txt");
+        File privFile = new File("server_private.txt");
+        KeyPair keyPair = generateRSAKeys();
+        PrintWriter pw = null;
+        if(!pubFile.exists()) {
+            try {
+                System.out.println("Generating new server public key");
+                pubFile.createNewFile();
+                pw = new PrintWriter(pubFile);
+                pw.print(keyPair.getPublic().toString());
+                pw.close();
+            } catch(IOException e) {
+                failWithMessage("Failed to create public key file.");
+                pw.close();
+                System.exit(0);
+            }
+        }
+        if(!privFile.exists()) {
+            try {
+                System.out.println("Generating new server private key");
+                privFile.createNewFile();
+                pw = new PrintWriter(privFile);
+                pw.print(keyPair.getPrivate().getEncoded());
+                pw.close();
+            } catch(IOException e) {
+                failWithMessage("Failed to create private key file.");
+                pw.close();
+                System.exit(0);
+            }
+        }
         receiveFile(socket);
     }
 
+    // TODO: figure out exiting... close sockets before fail with message?
     private static Socket acceptSocket() {
         ServerSocket servSock = null;
         // Begin accepting connections
@@ -46,6 +80,7 @@ public class server {
                 if(servSock != null) servSock.close();
             } catch(IOException e) {
                 failWithMessage("Failed to close server socket.");
+                System.exit(0);
             }
         }
         return null;
@@ -56,9 +91,9 @@ public class server {
         BufferedOutputStream bos = null;
         // Receive the file from client
         try {
-            int bytesRead = 0;
-            InputStream is = null;
-            int current = 0;
+            int bytesRead;
+            InputStream is;
+            int current;
             byte[] myByteArray = new byte[FILE_SIZE];
             is = socket.getInputStream();
             fos = new FileOutputStream(FILE_TO_RECEIVED);
@@ -119,13 +154,14 @@ public class server {
         }
     }
 
-    public static void generateRSAKeys(FileOutputStream fos, BufferedOutputStream bos, Socket sock) {
+    public static KeyPair generateRSAKeys() {
         try {
             KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-
+            keyPairGenerator.initialize(2048);
+            return keyPairGenerator.genKeyPair();
         } catch(NoSuchAlgorithmException e) {
             failWithMessage("Failed to get instance of RSA key pair generator.");
         }
-
+        return null;
     }
 }

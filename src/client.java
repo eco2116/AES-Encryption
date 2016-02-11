@@ -47,7 +47,7 @@ public class client {
         }
         return sock;
     }
-
+    // TODO: handle when client starts first
     private static void sendFile(Socket socket) {
         FileInputStream fis = null;
         BufferedInputStream bis = null;
