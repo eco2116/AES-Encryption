@@ -1,74 +1,94 @@
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 
 import java.net.InetAddress;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 
-
-// TODO: cite this: http://www.rgagnon.com/javadetails/java-0542.html
 public class client {
 
     public final static int SOCKET_PORT = 13267;      // you may change this
     public final static String SERVER = "127.0.0.1";  // localhost
     public final static String
-            FILE_TO_RECEIVED = "/Users/evanoconnor/dev/security/programming1/test.txt";  // you may change this, I give a
+            FILE_TO_SEND = "test.txt";  // you may change this, I give a
     // different name because i don't want to
     // overwrite the one used by server...
 
-    public final static int FILE_SIZE = 6022386; // file size temporary hard coded
-    // should bigger than the file to be downloaded
+
 
     public static void main (String[] args) {
 
+        /**
+         * Password: The 16 character password may contain any alphanumeric character (i.e. lowercase,
+         uppercase and digits). Note: special characters are not included in order to simplify the input.
+         • filename: Clearly indicate in your README file if the path of the file provided as input must be the
+         full path or relevant to the directory containing the executable. You may just require that the file be in
+         the same directory as the executable.
+         • server IP address or name
+         • port number to use when contacting the server
+         • Necessary RSA key components: any inputs (filenames) to provide the client the necessary
+         information for the RSA keys . Key components should be read from files and not have to be typed
+         by the user.
+         */
+//        String password = validatePassword(args[0]);
+//        String filename = validateFileName(args[1]);
+//        String address = validateIP(args[2]);
+//        int port = validatePort(args[3]);
 
-        int bytesRead;
-        int current = 0;
-        FileOutputStream fos = null;
-        BufferedOutputStream bos = null;
+        FileInputStream fis = null;
+        BufferedInputStream bis = null;
+        OutputStream os = null;
+        ServerSocket servsock = null;
         Socket sock = null;
+
+        System.out.println("Connecting...");
         try {
-
-            try {
-                sock = new Socket(SERVER, SOCKET_PORT);
-            } catch(UnknownHostException e) {
-                failWithMessage("Could not create socket due to unknown host.");
-            } catch(IOException e) {
-                failWithMessage("Error creating socket. Unexpected IOException was thrown.");
-            }
-
-            System.out.println("Connecting...");
-
-            // receive file
-            byte [] mybytearray  = new byte [FILE_SIZE];
-
-            try {
-                InputStream is = sock.getInputStream();
-            } catch()
-
-
-
-            fos = new FileOutputStream(FILE_TO_RECEIVED);
-            bos = new BufferedOutputStream(fos);
-            bytesRead = is.read(mybytearray,0,mybytearray.length);
-            current = bytesRead;
-
-            do {
-                bytesRead =
-                        is.read(mybytearray, current, (mybytearray.length-current));
-                if(bytesRead >= 0) current += bytesRead;
-            } while(bytesRead > -1);
-
-            bos.write(mybytearray, 0 , current);
-            bos.flush();
-            System.out.println("File " + FILE_TO_RECEIVED
-                    + " downloaded (" + current + " bytes read)");
+            sock = new Socket(SERVER, SOCKET_PORT);
+        } catch(IOException e) {
+            failWithMessage("Failed to create socket.");
         }
-        finally {
-            closeStreamsAndSocket(fos, bos, sock);
+
+        System.out.println("Accepted connection : " + sock);
+
+        // send file
+        File myFile = new File(FILE_TO_SEND);
+        byte[] mybytearray = new byte[(int) myFile.length()];
+
+        try {
+            fis = new FileInputStream(myFile);
+        } catch (FileNotFoundException e) {
+            failWithMessage("File not found by name " + FILE_TO_SEND, fis, bis, sock, servsock);
         }
+
+        bis = new BufferedInputStream(fis);
+
+        try {
+            bis.read(mybytearray, 0, mybytearray.length);
+        } catch (IOException e) {
+            failWithMessage("Failed to read buffered input stream.", fis, bis, sock, servsock);
+        }
+
+        try {
+            os = sock.getOutputStream();
+        } catch (IOException e) {
+            failWithMessage("Failed to get output stream from socket.");
+        }
+
+        System.out.println("Sending " + FILE_TO_SEND + "(" + mybytearray.length + " bytes)");
+
+        try {
+            os.write(mybytearray, 0, mybytearray.length);
+        } catch (IOException e) {
+            failWithMessage("Failed to write to output stream.");
+        }
+
+        try {
+            os.flush();
+        } catch (IOException e) {
+            failWithMessage("Failed to flush output stream.");
+        }
+
+        System.out.println("Done.");
     }
 
     private static String validatePassword(String input) {
@@ -81,9 +101,12 @@ public class client {
     }
 
     // TODO: validate file name
+    private static String validateFileName(String input) {
+        return input;
+    }
 
+    // TODO: implement
     private static String validateIP(String input) {
-        // TODO: implement
         return input;
     }
 
@@ -100,32 +123,27 @@ public class client {
         return port;
     }
 
+    private static void failWithMessage(String msg, FileInputStream fis, BufferedInputStream bis, Socket sock, ServerSocket serverSock) {
+        System.out.println("Client-side error encountered.");
+        System.out.println(msg);
+        closeStreamsAndSocket(fis, bis, sock, serverSock);
+        System.exit(0);
+    }
+
     private static void failWithMessage(String msg) {
         System.out.println("Client-side error encountered.");
         System.out.println(msg);
         System.exit(0);
     }
 
-    private static void closeStreamsAndSocket(FileOutputStream fos, BufferedOutputStream bos, Socket sock) {
+    private static void closeStreamsAndSocket(FileInputStream fis, BufferedInputStream bis, Socket sock, ServerSocket servSock) {
         try {
-            if (fos != null) fos.close();
-            if (bos != null) bos.close();
+            if (fis != null) fis.close();
+            if (bis != null) bis.close();
             if (sock != null) sock.close();
+            if (servSock != null) servSock.close();
         } catch(IOException e) {
-            failWithMessage("Unexpected IOException encountered while closing streams and sockets.");
+            failWithMessage("Failed to close streams and sockets.");
         }
-
     }
-/**
- * Password: The 16 character password may contain any alphanumeric character (i.e. lowercase,
- uppercase and digits). Note: special characters are not included in order to simplify the input.
- • filename: Clearly indicate in your README file if the path of the file provided as input must be the
- full path or relevant to the directory containing the executable. You may just require that the file be in
- the same directory as the executable.
- • server IP address or name
- • port number to use when contacting the server
- • Necessary RSA key components: any inputs (filenames) to provide the client the necessary
- information for the RSA keys . Key components should be read from files and not have to be typed
- by the user.
- */
 }
