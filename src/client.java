@@ -92,6 +92,9 @@ public class client {
             // Send file to server
             // TODO: remove this file to send thing
             File myFile = new File(FILE_TO_SEND);
+            if(myFile.canRead()) {
+                System.out.println("can read");
+            }
             System.out.println("file size:" + myFile.length());
             //byte[] mybytearray = new byte[(int) myFile.length()];
             fis = new FileInputStream(myFile);
@@ -225,7 +228,6 @@ public class client {
         int read;
         int totalRead = 0;
         byte[] encr;
-
 
         while ((read = inputStream.read(buff)) > 0) {
             totalRead += read;
