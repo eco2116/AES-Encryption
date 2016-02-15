@@ -221,4 +221,10 @@ public class crypto {
             super("AES Encryption failed: " + msg);
         }
     }
+
+    public static class SocketException extends Exception {
+        SocketException(String msg) {
+            super("Socket failure: " + msg);
+        }
+    }
 }

@@ -22,34 +22,27 @@ public class server {
 
     // TODO: cite http://www.rgagnon.com/javadetails/java-0542.html
     public static void main(String[] args) {
-        if(args.length != 4) {
-            validationFailure("Incorrect number of arguments.");
-        }
-
         // Input and validate client parameters
+        if(args.length != 4) { validationFailure("Incorrect number of arguments."); }
         int port = validatePort(args[0]);
         String trustedMode = validateTrustMode(args[1]);
         String privKey = validateFileName(args[2]);
         String pubKey = validateFileName(args[3]);
 
+        // Wait for client to accept connection on socket
         Socket socket = acceptSocket(port);
-
-        try {
+        if (socket != null) {
+            // Read in encrypted data from client and perform encryption
             receiveFile(socket, privKey, pubKey, trustedMode.equals("t"));
-        } catch(Exception e) {
-            // TODO: handle each exception
-            System.out.println("exception in receive file");
-            e.printStackTrace();
+        } else {
+            System.out.println("Exiting...");
         }
     }
 
-    // TODO: figure out exiting... close sockets before fail with message?
     private static Socket acceptSocket(int port) {
         ServerSocket servSock = null;
-
-        // Begin accepting connections
-        try {
-            System.out.println("Waiting...");
+        try { // Begin accepting connections
+            System.out.println("Waiting for client to connect...");
             servSock = new ServerSocket(port);
             return servSock.accept();
         } catch (UnknownHostException e) {
@@ -92,7 +85,7 @@ public class server {
 
             // AES decryption in CBC mode
             performAESDecryption(password, is, bos);
-            System.out.println("File " + STORE_FILE + " downloaded (" + bytesRead + " bytes read)");
+            System.out.println("Generated " + STORE_FILE + " (" + bytesRead + " bytes read)");
 
             // Validate signature
             byte[] buffer = new byte[256];
@@ -110,7 +103,7 @@ public class server {
                 System.out.println("Verification Failed");
             }
             System.out.println("Done");
-        
+
         // Send user-friendly error messages based on step being performed, close sockets/streams and exit nicely
         } catch (crypto.RSAPrivateDecryptionException e) {
             System.out.println(e.getMessage());
@@ -136,9 +129,7 @@ public class server {
         // Read in ciphertext file size
         byte[] sizeBytes = new byte[Long.SIZE / Byte.SIZE];
         inputStream.read(sizeBytes);
-
         long decryptSize = convertByteArrayToLong(sizeBytes);
-        System.out.println("val" + decryptSize);
 
         // Read in salt, keys, and authentication password
         byte[] saltBytes = new byte[crypto.SALT_SIZE];
@@ -161,8 +152,7 @@ public class server {
         int read;
         byte[] decrypt;
 
-        // TODO: handle cast
-        // Read in and decrypt specified number of bytes
+        // Read in and decrypt specified number of bytes (based on size specifications, we know this cast will not fail)
         read = inputStream.read(buff, 0, (int) decryptSize);
         decrypt = decrpytCipher.update(buff, 0, read);
         if(decrypt != null) {
@@ -171,7 +161,6 @@ public class server {
         outputStream.flush();
 
         // Decrypt final block
-        System.out.println("read" + read);
         decrypt = decrpytCipher.doFinal();
         if(decrypt != null) {
             outputStream.write(decrypt);
@@ -311,5 +300,4 @@ public class server {
         }
         return input;
     }
-
 }

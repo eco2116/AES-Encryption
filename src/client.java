@@ -2,7 +2,9 @@ import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import java.io.*;
 
+import java.net.InetAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -24,7 +26,6 @@ public class client {
         System.exit(0);
     }
 
-    // TODO: throw exceptions up to main and close everything there!!
     // TODO: cite https://www.owasp.org/index.php/Using_the_Java_Cryptographic_Extensions#AES_Encryption_and_Decryption
     public static void main (String[] args) {
 
@@ -45,7 +46,6 @@ public class client {
             System.out.println("Failed to connect to server.");
             System.exit(0);
         }
-
         // Send encrypted password, file, and signature to server
         sendFile(socket, password, pubKey, privKey, sendFile);
     }
@@ -63,9 +63,7 @@ public class client {
         return sock;
     }
 
-    // TODO: handle when client starts first
     private static void sendFile(Socket socket, String password, String pubFile, String privFile, String sendFile) {
-
         FileInputStream fis = null;
         BufferedInputStream bis = null;
         OutputStream os;
@@ -78,7 +76,11 @@ public class client {
                 throw new FileNotFoundException("File not found with name: " + sendFile);
             }
             bis = new BufferedInputStream(fis);
-            os = socket.getOutputStream();
+            try {
+                os = socket.getOutputStream();
+            } catch(NullPointerException e) {
+                throw new crypto.SocketException("Cannot connect to server. Make sure server is running and try again.");
+            }
 
             // Send server AES secret encrypted using server's public key
             performRSAPublicEncryption(password, pubFile, os);
@@ -95,7 +97,6 @@ public class client {
 
             // Encrypt and send hashed plaintext using client's private RSA key
             byte[] signature = performRSAPrivateEncryption(hashedPlaintext, privFile);
-            System.out.println("sizeee : " + signature.length);
             os.write(signature);
             os.flush();
 
@@ -110,12 +111,13 @@ public class client {
             System.out.println(e.getMessage());
         } catch (FileNotFoundException e) {
             System.out.println(e.getMessage());
+        } catch (crypto.SocketException e) {
+            System.out.println(e.getMessage());
         } catch (InterruptedException e) {
             System.out.println("Client thread failed to sleep. Please try again.");
         } catch (IOException e) {
             System.out.println("Unexpected IO exception encountered.");
-        }
-        finally {
+        } finally {
             closeStreamsAndSocket(fis, bis, socket);
         }
         System.out.println("Done.");
@@ -217,6 +219,12 @@ public class client {
 
     // TODO: implement
     private static String validateIP(String input) {
+        try {
+            // Check if host exists
+            InetAddress.getByName(input);
+        } catch (UnknownHostException e) {
+            validationFailure("Could not find IP address/host name: " + input);
+        }
         return input;
     }
 
@@ -285,10 +293,8 @@ public class client {
         // Final encryption block
         encr = encrCipher.doFinal();
         if(encr != null) {
-            totalRead += encr.length;
             outputStream.write(encr);
         }
-        System.out.println("total read: " + totalRead);
     }
 
     // Generate a random salt for secure password hashing
