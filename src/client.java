@@ -13,8 +13,7 @@ public class client {
 
     public final static int SOCKET_PORT = 13267;      // you may change this
     public final static String SERVER = "127.0.0.1";  // localhost
-    public final static String
-            FILE_TO_SEND = "test.txt";
+    public final static String FILE_TO_SEND = "test";
 
     private static final String AES_SPEC = "AES";
     private static final int AES_KEY_LENGTH = 128;
@@ -102,10 +101,10 @@ public class client {
             os.write(crypto.encryptRSAPublic(password.getBytes(), pubFile));
 
             // Send server encrypted ciphertext
-            //encryptFile(AES_KEY_LENGTH, password.toCharArray(), fis, os);
+            encryptFile(AES_KEY_LENGTH, password.toCharArray(), fis, os);
 
             // Hash the plaintext file
-            byte[] hashedPlaintext = crypto.generateHash(crypto.HASHING_ALGORITHM, FILE_TO_SEND);
+            //byte[] hashedPlaintext = crypto.generateHash(crypto.HASHING_ALGORITHM, FILE_TO_SEND);
 
             // Encrypt and send hashed plaintext using client's private RSA key
             //os.write(crypto.encryptRSAPrivate(hashedPlaintext, privFile));

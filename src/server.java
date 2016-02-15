@@ -11,7 +11,7 @@ import java.util.Arrays;
 public class server {
 
     public final static int SOCKET_PORT = 13267;  // you may change this
-    public final static String FILE_TO_RECEIVED = "test_new.txt";  // you may change this
+    public final static String FILE_TO_RECEIVED = "test_new";  // you may change this
     public final static int FILE_SIZE = 6022386;
     private static final String AES_SPEC = "AES";
     private static final int AES_KEY_LENGTH = 128;
@@ -106,11 +106,15 @@ public class server {
 //                if (bytesRead >= 0) current += bytesRead;
 //            } while (bytesRead > -1);
 
+            // Decrypt the AES password using server's private key
             byte[] decryptedPass = crypto.decryptRSA(myByteArray, privKey);
-            System.out.println(decryptedPass.length);
-            bos.write(decryptedPass, 0, 16);
+            //bos.write(decryptedPass, 0, decryptedPass.length);
+            //bos.flush();
 
-            bos.flush();
+            // Convert byte stream to char stream for password (we know this is valid due to client-side password constraints)
+            char[] password = (new String(decryptedPass)).toCharArray();
+            decryptFile(password, is, bos);
+
             System.out.println("File " + FILE_TO_RECEIVED
                     + " downloaded (" + bytesRead + " bytes read)");
         } catch (FileNotFoundException e) {
@@ -158,6 +162,7 @@ public class server {
         if(decrypt != null) {
             outputStream.write(decrypt);
         }
+        outputStream.flush();
         return crypto.AES_KEY_LENGTH;
     }
 
