@@ -105,6 +105,7 @@ public class client {
         return port;
     }
 
+    // TODO: print out usage
     private static void failWithMessage(String msg) {
         System.out.println("Client-side error encountered.");
         System.out.println(msg);

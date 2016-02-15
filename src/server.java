@@ -136,7 +136,7 @@ public class server {
         }
         return input;
     }
-
+    // TODO: print out usage
     private static void failWithMessage(String msg) {
         System.out.println("Server-side error encountered.");
         System.out.println(msg);
