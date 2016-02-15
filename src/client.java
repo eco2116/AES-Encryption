@@ -14,7 +14,6 @@ public class client {
 
     public final static int SOCKET_PORT = 13267;      // you may change this
     public final static String SERVER = "127.0.0.1";  // localhost
-    public final static String FILE_TO_SEND = "test";
 
     private static final String AES_SPEC = "AES";
     private static final int AES_KEY_LENGTH = 128;
@@ -58,10 +57,11 @@ public class client {
         // TODO: input properly
         String pubKey = "server_public.key";
         String privKey = "client_private.key";
+        String sendFile = args[0];
 
         Socket socket = connectToServer();
         try {
-            sendFile(socket, password, pubKey, privKey);
+            sendFile(socket, password, pubKey, privKey, sendFile);
         } catch(Exception e) {
             // TODO: handle exceptions separately
             failWithMessage("Failed to send file");
@@ -82,7 +82,7 @@ public class client {
         return sock;
     }
     // TODO: handle when client starts first
-    private static void sendFile(Socket socket, String password, String pubFile, String privFile) throws NoSuchPaddingException,
+    private static void sendFile(Socket socket, String password, String pubFile, String privFile, String sendFile) throws NoSuchPaddingException,
             NoSuchAlgorithmException, InvalidKeyException, InvalidParameterSpecException, IOException, IllegalBlockSizeException, BadPaddingException, InterruptedException {
 
         FileInputStream fis = null;
@@ -91,10 +91,13 @@ public class client {
         try {
             // Send file to server
             // TODO: remove this file to send thing
-            File myFile = new File(FILE_TO_SEND);
+            File myFile = new File(sendFile);
             if(myFile.canRead()) {
                 System.out.println("can read");
             }
+            System.out.println(myFile.getAbsoluteFile());
+
+
             System.out.println("file size:" + myFile.length());
             //byte[] mybytearray = new byte[(int) myFile.length()];
             fis = new FileInputStream(myFile);
@@ -115,7 +118,7 @@ public class client {
 
             // Hash the plaintext file
             // TODO: maybe send password size
-            byte[] hashedPlaintext = crypto.generateHash(crypto.HASHING_ALGORITHM, FILE_TO_SEND);
+            byte[] hashedPlaintext = crypto.generateHash(crypto.HASHING_ALGORITHM, sendFile);
             // Encrypt and send hashed plaintext using client's private RSA key
             byte[] signature = crypto.encryptRSAPrivate(hashedPlaintext, privFile);
             System.out.println("sizeee : " + signature.length);
@@ -126,7 +129,7 @@ public class client {
             //os.write(mybytearray, 0, mybytearray.length);
 
         } catch (FileNotFoundException e) {
-            failWithMessage("File not found by name " + FILE_TO_SEND);
+            failWithMessage("File not found by name " + sendFile);
         } catch (IOException e) {
             failWithMessage("Failed to send file to server.");
         } finally {
