@@ -53,13 +53,13 @@ public class client {
          by the user.
          */
         String password = validatePassword(args[0]);
-//        String filename = validateFileName(args[1]);
+        String filename = validateFileName(args[1]);
 //        String address = validateIP(args[2]);
 //        int port = validatePort(args[3]);
 
         Socket socket = connectToServer();
         try {
-            sendFile(socket, password);
+            sendFile(socket, password, filename);
         } catch(Exception e) {
             // TODO: handle exceptions separately
             failWithMessage("Failed to send file");
@@ -80,7 +80,7 @@ public class client {
         return sock;
     }
     // TODO: handle when client starts first
-    private static void sendFile(Socket socket, String password) throws NoSuchPaddingException, NoSuchAlgorithmException,
+    private static void sendFile(Socket socket, String password, String pubFile) throws NoSuchPaddingException, NoSuchAlgorithmException,
             InvalidKeyException, InvalidParameterSpecException, IOException, IllegalBlockSizeException, BadPaddingException {
 
         FileInputStream fis = null;
@@ -96,6 +96,11 @@ public class client {
 
 
             os = socket.getOutputStream();
+
+            // Send server AES secret encrypted using server's public key
+            os.write(crypto.encryptRSA(password.getBytes(), pubFile));
+
+            // Send server encrypted ciphertext
             encryptFile(AES_KEY_LENGTH, password.toCharArray(), fis, os);
 
             //System.out.println("Sending " + FILE_TO_SEND + "(" + mybytearray.length + " bytes)");

@@ -1,10 +1,17 @@
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKeyFactory;
+import sun.security.util.BigInt;
+
+import javax.crypto.*;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.*;
+import java.math.BigInteger;
+import java.security.InvalidKeyException;
+import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
+import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
+import java.security.spec.RSAPublicKeySpec;
 import java.util.Arrays;
 
 public class crypto {
@@ -57,6 +64,38 @@ public class crypto {
         SecretKey auth = new SecretKeySpec(Arrays.copyOfRange(key, 0, AUTH_SIZE), AES_SPEC);
         SecretKey enc = new SecretKeySpec(Arrays.copyOfRange(key, AUTH_SIZE, key.length), AES_SPEC);
         return new crypto.Keys(enc, auth);
+    }
+
+    public static byte[] encryptRSA(byte[] data, String fileName) throws IOException, NoSuchAlgorithmException,
+            NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+
+        PublicKey publicKey = readPublicKey(fileName);
+        Cipher encryptionCipher = Cipher.getInstance("RSA");
+        encryptionCipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        return encryptionCipher.doFinal(data);
+    }
+
+    private static PublicKey readPublicKey(String fileName) throws IOException {
+        File file = new File(fileName);
+        FileInputStream fis = new FileInputStream(file);
+        ObjectInputStream oin = new ObjectInputStream(new BufferedInputStream(fis));
+
+        try {
+            BigInteger m = (BigInteger) oin.readObject();
+            BigInteger e = (BigInteger) oin.readObject();
+
+            RSAPublicKeySpec keySpec = new RSAPublicKeySpec(m, e);
+            KeyFactory fact = KeyFactory.getInstance("RSA");
+            return fact.generatePublic(keySpec);
+
+        } catch(Exception e) {
+            // TODO: fix exceptions
+            failWithMessage("Failed to read public key.");
+        } finally {
+            fis.close();
+            oin.close();
+        }
+        return null;
     }
 
     public static void failWithMessage(String msg) {
