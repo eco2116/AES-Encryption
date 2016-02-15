@@ -9,49 +9,30 @@ import java.util.Arrays;
 
 public class server {
 
-    public final static int SOCKET_PORT = 13267;  // you may change this
-    public final static String FILE_TO_RECEIVED = "decryptedfile";  // you may change this
-    public final static int FILE_SIZE = 6022386;
-    private static final String AES_SPEC = "AES";
+    public final static String STORE_FILE = "decryptedfile";
     private static final int AES_KEY_LENGTH = 128;
-
     // TODO: understand why
     private static final int ENCR_PASS_SIZE = 256;
 
-    // TODO: Move to crypto
-    // AES specification - changing will break existing encrypted streams!
-    private static final String CIPHER_SPEC = "AES/CBC/PKCS5Padding";
-
-    // Key derivation specification - changing will break existing streams!
-    private static final String KEY_GENERAITON_SPEC = "PBKDF2WithHmacSHA1";
-    private static final int SALT_SIZE = 16; // in bytes
-    private static final int AUTH_SIZE = 8; // in bytes
-    private static final int AUTH_ITERATIONS = 32768;
-
-    // Process input/output streams in chunks - arbitrary
-    private static final int BUFF_SIZE = 1024;
-
-    // TODO: is this really what it is?
+    public static void validationFailure(String msg) {
+        System.out.println(msg);
+        System.out.println("Usage: java server <port> <mode> <server privkey> <client pubkey>");
+        System.exit(0);
+    }
 
     // TODO: cite http://www.rgagnon.com/javadetails/java-0542.html
     public static void main(String[] args) {
-        /**
-         *  The port number on which the server will listen for a connection from the client.
-         • mode: A single lowercase character of t or u. t means trusted mode, u means untrusted mode (file
-         gets replaced).
-         • Necessary RSA key components: any inputs (filenames) to provide the server the necessary
-         information for the RSA keys . Key components should be read from files and not have to be typed
-         by the user.
-         Notes on the details
-         */
+        if(args.length != 4) {
+            validationFailure("Incorrect number of arguments.");
+        }
+
         // Input and validate client parameters
-//        int port = validatePort(args[0]);
-//        String trustedMode = validateTrustMode(args[1]);
+        int port = validatePort(args[0]);
+        String trustedMode = validateTrustMode(args[1]);
+        String privKey = validateFileName(args[2]);
+        String pubKey = validateFileName(args[3]);
 
-        String privKey = "server_private.key";
-        String pubKey = "client_public.key";
-
-        Socket socket = acceptSocket();
+        Socket socket = acceptSocket(port);
 
         try {
             receiveFile(socket, privKey, pubKey);
@@ -60,18 +41,16 @@ public class server {
             System.out.println("exception in receive file");
             e.printStackTrace();
         }
-
-
-
     }
 
     // TODO: figure out exiting... close sockets before fail with message?
-    private static Socket acceptSocket() {
+    private static Socket acceptSocket(int port) {
         ServerSocket servSock = null;
+
         // Begin accepting connections
         try {
             System.out.println("Waiting...");
-            servSock = new ServerSocket(SOCKET_PORT);
+            servSock = new ServerSocket(port);
             return servSock.accept();
         } catch (UnknownHostException e) {
             failWithMessage("Failed to create socket due to unknown host.");
@@ -91,44 +70,31 @@ public class server {
     private static void receiveFile(Socket socket, String privKey, String pubKey) throws Exception {
         FileOutputStream fos = null;
         BufferedOutputStream bos = null;
-        // Receive and decrypt password from client
         try {
-            int bytesRead;
+            int bytesRead; // Receive and decrypt password from client
             InputStream is;
             byte[] myByteArray = new byte[ENCR_PASS_SIZE];
             is = socket.getInputStream();
-            fos = new FileOutputStream(FILE_TO_RECEIVED);
+            fos = new FileOutputStream(STORE_FILE);
             bos = new BufferedOutputStream(fos);
             bytesRead = is.read(myByteArray, 0, myByteArray.length);
 
             // Decrypt the AES password using server's private key
             byte[] decryptedPass = crypto.decryptRSAPrivate(myByteArray, privKey);
-            //bos.write(decryptedPass, 0, decryptedPass.length);
-            //bos.flush();
 
             // Convert byte stream to char stream for password (we know this is valid due to client-side password constraints)
             char[] password = (new String(decryptedPass)).toCharArray();
             decryptFile(password, is, bos);
 
-            System.out.println("File " + FILE_TO_RECEIVED
+            System.out.println("File " + STORE_FILE
                     + " downloaded (" + bytesRead + " bytes read)");
 
             // Validate signature
-
-            int current = 0;
-//            do {
-//                bytesRead = is.read(myByteArray, current, (myByteArray.length - current));
-//                if (bytesRead >= 0) current += bytesRead;
-//            } while (bytesRead > -1);
-
             byte[] buffer = new byte[256];
-            int numRead;
-
             byte[] decrypted = null;
-            while ((numRead = is.read(buffer)) > 0) {
+
+            while ((is.read(buffer)) > 0) {
                 decrypted = crypto.decryptRSAPublic(buffer, pubKey);
-                //fos.write(decrypted);
-                //fos.flush();
             }
 
             // Compare hashed plaintext to decrypted signature
@@ -139,7 +105,7 @@ public class server {
                 System.out.println("Verification Failed");
             }
 
-            System.out.println("done" + decrypted.length);
+            System.out.println("done");
 
         } catch (FileNotFoundException e) {
             failWithMessage("File could not be found.");
@@ -150,7 +116,7 @@ public class server {
         }
     }
 
-    private static int decryptFile(char[] password, InputStream inputStream, OutputStream outputStream) throws IOException,
+    private static void decryptFile(char[] password, InputStream inputStream, OutputStream outputStream) throws IOException,
             crypto.InvalidPasswordException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
                     InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, ShortBufferException {
 
@@ -162,7 +128,7 @@ public class server {
         System.out.println("val" + decryptSize);
 
         // Read in salt, keys, and authentication password
-        byte[] saltBytes = new byte[SALT_SIZE];
+        byte[] saltBytes = new byte[crypto.SALT_SIZE];
         inputStream.read(saltBytes);
         crypto.Keys keys = crypto.generateKeysFromPassword(AES_KEY_LENGTH, password, saltBytes);
         byte[] auth = new byte[crypto.AUTH_SIZE];
@@ -182,12 +148,6 @@ public class server {
         int read;
         byte[] decrypt;
 
-//        do((read = inputStream.read(buff, 0, (int) decryptSize)) > 0) {
-//            decrypt = decrpytCipher.update(buff, 0, read);
-//            if(decrypt != null) {
-//                outputStream.write(decrypt);
-//            }
-//        }
         // TODO: handle cast
         // Read in and decrypt specified number of bytes
         read = inputStream.read(buff, 0, (int) decryptSize);
@@ -197,8 +157,6 @@ public class server {
         }
         outputStream.flush();
 
-        //System.out.println("diff" + decrpytCipher.getBlockSize());
-
         // Decrypt final block
         System.out.println("read" + read);
         decrypt = decrpytCipher.doFinal();
@@ -206,9 +164,6 @@ public class server {
             outputStream.write(decrypt);
         }
         outputStream.flush();
-
-        // TODO: return void?
-        return crypto.AES_KEY_LENGTH;
     }
 
     private static int validatePort(String input) {
@@ -256,4 +211,13 @@ public class server {
         }
         return value;
     }
+
+    private static String validateFileName(String input) {
+        File validate = new File(input);
+        if(!validate.canRead()) {
+            validationFailure("Cannot read from file: " + input);
+        }
+        return input;
+    }
+
 }

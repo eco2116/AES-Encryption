@@ -1,6 +1,3 @@
-import sun.nio.cs.StandardCharsets;
-import sun.security.util.BigInt;
-
 import javax.crypto.*;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -15,20 +12,13 @@ import java.util.Arrays;
 
 public class crypto {
 
-    public final static int SOCKET_PORT = 13267;  // you may change this
-    public final static String FILE_TO_RECEIVED = "test_new.txt";  // you may change this
-    public final static int FILE_SIZE = 6022386;
     public static final String AES_SPEC = "AES";
-    public static final int AES_KEY_LENGTH = 128;
     public static final int IV_SIZE = 16;
-
-    // TODO: Move to crypto
-    // AES specification - changing will break existing encrypted streams!
+    public static final int SALT_SIZE = 16; // in bytes
     public static final String CIPHER_SPEC = "AES/CBC/PKCS5Padding";
 
     // Key derivation specification - changing will break existing streams!
     public static final String KEY_GENERAITON_SPEC = "PBKDF2WithHmacSHA1";
-    public static final int SALT_SIZE = 16; // in bytes
     public static final int AUTH_SIZE = 8; // in bytes
     public static final int AUTH_ITERATIONS = 32768;
 
