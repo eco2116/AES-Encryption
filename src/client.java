@@ -1,9 +1,18 @@
+import javax.crypto.*;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 
-import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.UnknownHostException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.InvalidParameterSpecException;
+import java.security.spec.KeySpec;
+import java.util.Arrays;
+import java.util.Random;
 
 public class client {
 
@@ -12,6 +21,23 @@ public class client {
     public final static String
             FILE_TO_SEND = "test.txt";
 
+    private static final String AES_SPEC = "AES";
+    private static final int AES_KEY_LENGTH = 128;
+
+    // AES specification - changing will break existing encrypted streams!
+    private static final String CIPHER_SPEC = "AES/CBC/PKCS5Padding";
+
+    // Key derivation specification - changing will break existing streams!
+    private static final String KEY_GENERAITON_SPEC = "PBKDF2WithHmacSHA1";
+    private static final int SALT_SIZE = 16; // in bytes
+    private static final int AUTH_SIZE = 8; // in bytes
+    private static final int AUTH_ITERATIONS = 32768;
+
+    // Process input/output streams in chunks - arbitrary
+    private static final int BUFF_SIZE = 1024;
+
+    // TODO: throw exceptions up to main and close everything there!!
+    // TODO: cite https://www.owasp.org/index.php/Using_the_Java_Cryptographic_Extensions#AES_Encryption_and_Decryption
     public static void main (String[] args) {
 
         /**
@@ -120,4 +146,89 @@ public class client {
             failWithMessage("Failed to close streams and sockets.");
         }
     }
+
+    private static void encryptFile(int keySize, char[] pass, InputStream inputStream, OutputStream outputStream)
+            throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, InvalidParameterSpecException,
+                    IOException, IllegalBlockSizeException, BadPaddingException {
+
+        // Check for valid key length
+        if(keySize != AES_KEY_LENGTH) {
+            failWithMessage("Invalid AES key size.");
+            // TODO: throw an exception
+            System.exit(0);
+        }
+
+        // Generate salt and keys (for authentication and encryption)
+        byte[] salt = generateRandomSalt(SALT_SIZE);
+        Keys secret = generateKeysFromPassword(keySize, pass, salt);
+
+        Cipher encrCipher = null;
+
+        // Initialize AES cipher
+        encrCipher = Cipher.getInstance(CIPHER_SPEC);
+        encrCipher.init(Cipher.ENCRYPT_MODE, secret.encr);
+
+        // Generate initialization vector
+        byte[] iv = encrCipher.getParameters().getParameterSpec(IvParameterSpec.class).getIV();
+
+        // Send authentication and AES initialization data
+        //outputStream.write(keySize / 8);
+        outputStream.write(salt);
+        outputStream.write(secret.auth.getEncoded());
+        outputStream.write(iv);
+
+        // Use a buffer to send chunks of encrypted data to server
+        byte[] buff = new byte[BUFF_SIZE];
+        int read;
+        byte[] encr;
+        while ((read = inputStream.read(buff)) > 0) {
+            encr = encrCipher.update(buff, 0, read);
+            if(encr != null) {
+                outputStream.write(encr);
+            }
+        }
+        // Final encryption block
+        encr = encrCipher.doFinal();
+        if(encr != null) {
+            outputStream.write(encr);
+        }
+    }
+
+    private static Keys generateKeysFromPassword(int size, char[] pass, byte[] salt) {
+        SecretKeyFactory secretKeyFactory = null;
+        try {
+            secretKeyFactory = SecretKeyFactory.getInstance(KEY_GENERAITON_SPEC);
+        } catch(NoSuchAlgorithmException e) {
+            failWithMessage("Failed to generate secret key factor.");
+        }
+        KeySpec keySpec = new PBEKeySpec(pass, salt, AUTH_ITERATIONS, size + AUTH_SIZE * 8);
+        SecretKey tmpKey = null;
+        try {
+            tmpKey = secretKeyFactory.generateSecret(keySpec);
+        } catch(InvalidKeySpecException e) {
+            failWithMessage("Failed to generate secret due to invalid key spec.");
+        }
+        byte[] key = tmpKey.getEncoded();
+        SecretKey auth = new SecretKeySpec(Arrays.copyOfRange(key, 0, AUTH_SIZE), AES_SPEC);
+        SecretKey enc = new SecretKeySpec(Arrays.copyOfRange(key, AUTH_SIZE, key.length), AES_SPEC);
+        return new Keys(enc, auth);
+    }
+
+    // Generate a random salt for secure password hashing
+    private static byte[] generateRandomSalt(int size) {
+        Random random = new SecureRandom();
+        byte[] saltBytes = new byte[size];
+        random.nextBytes(saltBytes);
+        return saltBytes;
+    }
+
+    // Class to store pair of encryption and authentication keys
+    private static class Keys {
+        public final SecretKey encr, auth;
+        public Keys(SecretKey encr, SecretKey auth) {
+            this.encr = encr;
+            this.auth = auth;
+        }
+    }
+
 }
