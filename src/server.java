@@ -5,13 +5,12 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.security.*;
-import java.security.spec.InvalidParameterSpecException;
 import java.util.Arrays;
 
 public class server {
 
     public final static int SOCKET_PORT = 13267;  // you may change this
-    public final static String FILE_TO_RECEIVED = "test_new";  // you may change this
+    public final static String FILE_TO_RECEIVED = "decryptedfile";  // you may change this
     public final static int FILE_SIZE = 6022386;
     private static final String AES_SPEC = "AES";
     private static final int AES_KEY_LENGTH = 128;
@@ -50,11 +49,12 @@ public class server {
 //        String trustedMode = validateTrustMode(args[1]);
 
         String privKey = "server_private.key";
+        String pubKey = "client_public.key";
 
         Socket socket = acceptSocket();
 
         try {
-            receiveFile(socket, privKey);
+            receiveFile(socket, privKey, pubKey);
         } catch(Exception e) {
             // TODO: handle each exception
             System.out.println("exception in receive file");
@@ -88,7 +88,7 @@ public class server {
         return null;
     }
 
-    private static void receiveFile(Socket socket, String privKey) throws Exception {
+    private static void receiveFile(Socket socket, String privKey, String pubKey) throws Exception {
         FileOutputStream fos = null;
         BufferedOutputStream bos = null;
         // Receive and decrypt password from client
@@ -101,15 +101,8 @@ public class server {
             bos = new BufferedOutputStream(fos);
             bytesRead = is.read(myByteArray, 0, myByteArray.length);
 
-
-//            current = bytesRead;
-//            do {
-//                bytesRead = is.read(myByteArray, current, (myByteArray.length - current));
-//                if (bytesRead >= 0) current += bytesRead;
-//            } while (bytesRead > -1);
-
             // Decrypt the AES password using server's private key
-            byte[] decryptedPass = crypto.decryptRSA(myByteArray, privKey);
+            byte[] decryptedPass = crypto.decryptRSAPrivate(myByteArray, privKey);
             //bos.write(decryptedPass, 0, decryptedPass.length);
             //bos.flush();
 
@@ -119,6 +112,30 @@ public class server {
 
             System.out.println("File " + FILE_TO_RECEIVED
                     + " downloaded (" + bytesRead + " bytes read)");
+
+            // Validate signature
+
+            int current = 0;
+//            do {
+//                bytesRead = is.read(myByteArray, current, (myByteArray.length - current));
+//                if (bytesRead >= 0) current += bytesRead;
+//            } while (bytesRead > -1);
+
+            byte[] buffer = new byte[256];
+            int numRead;
+
+            byte[] decrypted = null;
+            while ((numRead = is.read(buffer)) > 0) {
+                decrypted = crypto.decryptRSAPublic(buffer, pubKey);
+                //fos.write(decrypted);
+                //fos.flush();
+            }
+
+            byte[] hash = crypto.generateHash(crypto.HASHING_ALGORITHM, "decryptedfile");
+            
+
+            System.out.println("done" + decrypted.length);
+
         } catch (FileNotFoundException e) {
             failWithMessage("File could not be found.");
         } catch (IOException e) {
@@ -185,6 +202,7 @@ public class server {
         }
         outputStream.flush();
 
+        // TODO: return void?
         return crypto.AES_KEY_LENGTH;
     }
 

@@ -92,7 +92,7 @@ public class crypto {
         return encryptionCipher.doFinal(data);
     }
 
-    public static byte[] decryptRSA(byte[] data, String fileName) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException,
+    public static byte[] decryptRSAPrivate(byte[] data, String fileName) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException,
             InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
 
         // Read private key from specified file
@@ -101,6 +101,18 @@ public class crypto {
         // Generate an RSA cipher to decrypt data
         Cipher cipher = Cipher.getInstance(RSA_ALGORITHM);
         cipher.init(Cipher.DECRYPT_MODE, privateKey);
+        return cipher.doFinal(data);
+    }
+
+    public static byte[] decryptRSAPublic(byte[] data, String fileName) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException,
+            InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+
+        // Read public key from specified file
+        PublicKey publicKey = readPublicKey(fileName);
+
+        // Generate an RSA cipher to decrypt data
+        Cipher cipher = Cipher.getInstance(RSA_ALGORITHM);
+        cipher.init(Cipher.DECRYPT_MODE, publicKey);
         return cipher.doFinal(data);
     }
 

@@ -107,12 +107,16 @@ public class client {
             // Send server encrypted ciphertext
             encryptFile(AES_KEY_LENGTH, password.toCharArray(), fis, os, myFile.length());
 
+            // Sleep so that server sees separation between file and signature
+            Thread.sleep(1000);
+
             // Hash the plaintext file
             // TODO: maybe send password size
             byte[] hashedPlaintext = crypto.generateHash(crypto.HASHING_ALGORITHM, FILE_TO_SEND);
-            Thread.sleep(1000);
             // Encrypt and send hashed plaintext using client's private RSA key
-            os.write(crypto.encryptRSAPrivate(hashedPlaintext, privFile));
+            byte[] signature = crypto.encryptRSAPrivate(hashedPlaintext, privFile);
+            System.out.println("sizeee : " + signature.length);
+            os.write(signature);
             os.flush();
 
             //System.out.println("Sending " + FILE_TO_SEND + "(" + mybytearray.length + " bytes)");
