@@ -53,21 +53,21 @@ public class server {
             servSock = new ServerSocket(port);
             return servSock.accept();
         } catch (UnknownHostException e) {
-            failWithMessage("Failed to create socket due to unknown host.");
+            System.out.println("Failed to create socket due to unknown host.");
         } catch (IOException e) {
-            failWithMessage("Failed to create socket.");
+            System.out.println("Failed to create socket.");
         } finally {
             try {
                 if(servSock != null) servSock.close();
             } catch(IOException e) {
-                failWithMessage("Failed to close server socket.");
+                System.out.println("Failed to close server socket.");
                 System.exit(0);
             }
         }
         return null;
     }
 
-    private static void receiveFile(Socket socket, String privKey, String pubKey, boolean isTrusted) throws Exception {
+    private static void receiveFile(Socket socket, String privKey, String pubKey, boolean isTrusted) {
         FileOutputStream fos = null;
         BufferedOutputStream bos = null;
         try {
@@ -75,16 +75,23 @@ public class server {
             InputStream is;
             byte[] myByteArray = new byte[ENCR_PASS_SIZE];
             is = socket.getInputStream();
-            fos = new FileOutputStream(STORE_FILE);
+
+            try {
+                fos = new FileOutputStream(STORE_FILE);
+            } catch(FileNotFoundException e) {
+                throw new FileNotFoundException("File not found by name: " + STORE_FILE);
+            }
             bos = new BufferedOutputStream(fos);
             bytesRead = is.read(myByteArray, 0, myByteArray.length);
 
             // Decrypt the AES password using server's private key
-            byte[] decryptedPass = crypto.decryptRSAPrivate(myByteArray, privKey);
+            byte[] decryptedPass = performRSAPrivateDecryption(myByteArray, privKey);
 
             // Convert byte stream to char stream for password (we know this is valid due to client-side password constraints)
             char[] password = (new String(decryptedPass)).toCharArray();
-            decryptFile(password, is, bos);
+
+            performAESDecryption(password, is, bos);
+
 
             System.out.println("File " + STORE_FILE + " downloaded (" + bytesRead + " bytes read)");
 
@@ -93,12 +100,13 @@ public class server {
             byte[] decrypted = null;
 
             while ((is.read(buffer)) > 0) {
-                decrypted = crypto.decryptRSAPublic(buffer, pubKey);
+                decrypted = performRSAPublicDecryption(buffer, pubKey);
             }
 
             // Compare hashed plaintext to decrypted signature
             String verifyFile = isTrusted ? STORE_FILE : FAKE_FILE;
-            byte[] hash = crypto.generateHash(crypto.HASHING_ALGORITHM, verifyFile);
+            byte[] hash = performHashing(verifyFile);
+
             if(Arrays.equals(decrypted, hash)) {
                 System.out.println("Verification Passed");
             } else {
@@ -107,10 +115,18 @@ public class server {
 
             System.out.println("done");
 
+        } catch (crypto.RSAPrivateDecryptionException e) {
+            System.out.println(e.getMessage());
+        } catch (crypto.AESDecryptionException e) {
+            System.out.println(e.getMessage());
+        } catch (crypto.RSAPublicDecryptionException e) {
+            System.out.println(e.getMessage());
+        } catch (crypto.HashingException e) {
+            System.out.println(e.getMessage());
         } catch (FileNotFoundException e) {
-            failWithMessage("File could not be found.");
+            System.out.println(e.getMessage());
         } catch (IOException e) {
-            failWithMessage("Failed to receive file due to unexpected exception.");
+            System.out.println("Unexpected IO exception encountered.");
         } finally {
             closeStreamsAndSocket(fos, bos, socket);
         }
@@ -166,32 +182,111 @@ public class server {
         outputStream.flush();
     }
 
+    private static byte[] performRSAPublicDecryption(byte[] buffer, String pubKey) throws crypto.RSAPublicDecryptionException {
+        byte[] decrypted;
+        try {
+            decrypted = crypto.decryptRSAPublic(buffer, pubKey);
+        } catch (IOException e) {
+            throw new crypto.RSAPublicDecryptionException("Unexpected IO exception.");
+        } catch (NoSuchAlgorithmException e) {
+            throw new crypto.RSAPublicDecryptionException("Could not find algorithm.");
+        } catch (NoSuchPaddingException e) {
+            throw new crypto.RSAPublicDecryptionException("Could not find padding.");
+        } catch (InvalidKeyException e) {
+            throw new crypto.RSAPublicDecryptionException("Invalid key.");
+        } catch (IllegalBlockSizeException e) {
+            throw new crypto.RSAPublicDecryptionException("Illegal block size.");
+        } catch (BadPaddingException e) {
+            throw new crypto.RSAPublicDecryptionException("Bad padding.");
+        }
+        return decrypted;
+    }
+
+    private static byte[] performRSAPrivateDecryption(byte[] myByteArray, String privKey) throws crypto.RSAPrivateDecryptionException {
+        // Use crypto helper function to decrypt using RSA private key; provide user-friendly errors
+        byte[] decryptedPass;
+        try {
+            decryptedPass = crypto.decryptRSAPrivate(myByteArray, privKey);
+        // Provide user-friendly error handling
+        } catch (IOException e) {
+            throw new crypto.RSAPrivateDecryptionException("Unexpected IO exception.");
+        } catch (NoSuchAlgorithmException e) {
+            throw new crypto.RSAPrivateDecryptionException("Could not find algorithm.");
+        } catch (NoSuchPaddingException e) {
+            throw new crypto.RSAPrivateDecryptionException("Could not find padding.");
+        } catch (InvalidKeyException e) {
+            throw new crypto.RSAPrivateDecryptionException("Invalid key.");
+        } catch (IllegalBlockSizeException e) {
+            throw new crypto.RSAPrivateDecryptionException("Illegal block size");
+        } catch (BadPaddingException e) {
+            throw new crypto.RSAPrivateDecryptionException("Bad padding.");
+        }
+        return decryptedPass;
+    }
+
+    private static void performAESDecryption(char[] password, InputStream is, BufferedOutputStream bos)
+            throws crypto.AESDecryptionException {
+        try {
+            // Use crypto AES decryption helper function
+            decryptFile(password, is, bos);
+        // Provide user-friendly error handling
+        } catch (IOException e) {
+            throw new crypto.AESDecryptionException("Unexpected IO Exception.");
+        } catch (crypto.InvalidPasswordException e) {
+            throw new crypto.AESDecryptionException("Invalid password.");
+        } catch (NoSuchPaddingException e) {
+            throw new crypto.AESDecryptionException("Could not find padding.");
+        } catch (NoSuchAlgorithmException e) {
+            throw new crypto.AESDecryptionException("Could not find algorithm.");
+        } catch (InvalidKeyException e) {
+            throw new crypto.AESDecryptionException("Invalid key.");
+        } catch (InvalidAlgorithmParameterException e) {
+            throw new crypto.AESDecryptionException("Invalid algorithm parameter.");
+        } catch (IllegalBlockSizeException e) {
+            throw new crypto.AESDecryptionException("Illegal block size.");
+        } catch (BadPaddingException e) {
+            throw new crypto.AESDecryptionException("Bad padding");
+        } catch (ShortBufferException e) {
+            throw new crypto.AESDecryptionException("Short buffer");
+        }
+    }
+
+    private static byte[] performHashing(String verifyFile) throws crypto.HashingException {
+        byte[] hash;
+        try {
+            hash = crypto.generateHash(crypto.HASHING_ALGORITHM, verifyFile);
+        } catch (NoSuchAlgorithmException e) {
+            throw new crypto.HashingException("Could not find algorithm named " + crypto.HASHING_ALGORITHM + ".");
+        } catch (FileNotFoundException e) {
+            throw new crypto.HashingException("Could not find file named " + verifyFile + ".");
+        } catch (IOException e) {
+            throw new crypto.HashingException("Unexpected IO exception");
+        }
+        return hash;
+    }
+
     private static int validatePort(String input) {
         int port = 0;
         try {
             port = Integer.parseInt(input);
         } catch(NumberFormatException e) {
-            failWithMessage("Port must be an integer");
+            validationFailure("Port must be an integer");
         }
         if(port > 65536) {
-            failWithMessage("Port value out of range. Must be <= 6535");
+            validationFailure("Port value out of range. Must be <= 6535");
         }
         return port;
     }
 
     private static String validateTrustMode(String input) {
         if(!input.equals("t") && !input.equals("u")) {
-            failWithMessage("Trusted mode must be set to t or u");
+            validationFailure("Trusted mode must be set to t or u");
+        } else if(input.equals("u")) {
+            // Verify fakefile exists
+            validateFileName(FAKE_FILE);
         }
         return input;
     }
-    // TODO: print out usage
-    private static void failWithMessage(String msg) {
-        System.out.println("Server-side error encountered.");
-        System.out.println(msg);
-    }
-
-    // TODO: Validate RSA file names
 
     private static void closeStreamsAndSocket(FileOutputStream fos, BufferedOutputStream bos, Socket sock) {
         try {
@@ -199,7 +294,7 @@ public class server {
             if (bos != null) bos.close();
             if (sock != null) sock.close();
         } catch(IOException e) {
-            failWithMessage("Failed to close streams and sockets.");
+            System.out.println("Failed to close streams and sockets.");
         }
     }
 

@@ -10,11 +10,21 @@ import java.security.spec.RSAPublicKeySpec;
 
 public class generatekeys {
 
+    public static void validationFailure(String msg) {
+        System.out.println(msg);
+        System.out.println("Usage: java generatekeys <server or client>");
+        System.exit(0);
+    }
+
     //TODO: cite http://www.javamex.com/tutorials/cryptography/rsa_encryption.shtml
     public static void main(String[] args) {
 
+        // Validate arguments
+        if(args.length != 1) {
+            validationFailure("Expected one argument.");
+        }
         if (!args[0].equals("server") && !args[0].equals("client")) {
-            failWithMessage("Expecting parameter of server or client");
+            validationFailure("Expected argument 1 to be server or client.");
         }
         try {
             // Generate 2048-bit modulus private public key pairs
@@ -29,11 +39,14 @@ public class generatekeys {
             saveToFile(args[0] + "_public.key", pub.getModulus(), pub.getPublicExponent());
             saveToFile(args[0] + "_private.key", priv.getModulus(), priv.getPrivateExponent());
         } catch (NoSuchAlgorithmException e) {
-            failWithMessage("Failed finding RSA key factory.");
+            System.out.println("Failed finding RSA key factory.");
+            System.exit(0);
         } catch (IOException e) {
-            failWithMessage("Failed to generate RSA keys.");
+            System.out.println("Failed to generate RSA keys.");
+            System.exit(0);
         } catch (InvalidKeySpecException e) {
-            failWithMessage("Failed to find valid key spec.");
+            System.out.println("Failed to find valid key spec.");
+            System.exit(0);
         }
     }
 
@@ -52,10 +65,4 @@ public class generatekeys {
             oout.close();
         }
     }
-    // TODO: print out usage
-    private static void failWithMessage(String msg) {
-        System.out.println("Key generation error encountered.");
-        System.out.println(msg);
-    }
-
 }

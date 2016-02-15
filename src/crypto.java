@@ -180,31 +180,28 @@ public class crypto {
 
     public static class InvalidPasswordException extends Exception { }
 
-    /**
-     * Thrown if an attempt is made to encrypt a stream with an invalid AES key length.
-     */
-    public static class InvalidKeyLengthException extends Exception {
-        InvalidKeyLengthException(int length) {
-            super("Invalid AES key length: " + length);
+    public static class RSAPrivateDecryptionException extends Exception {
+        RSAPrivateDecryptionException(String msg) {
+            super("RSA Decryption failed using private key: " + msg);
         }
     }
 
-    /**
-     * Thrown if 192- or 256-bit AES encryption or decryption is attempted,
-     * but not available on the particular Java platform.
-     */
-    public static class StrongEncryptionNotAvailableException extends Exception {
-        public StrongEncryptionNotAvailableException(int keySize) {
-            super(keySize + "-bit AES encryption is not available on this Java platform.");
+    public static class RSAPublicDecryptionException extends Exception {
+        RSAPublicDecryptionException(String msg) {
+            super("RSA Decryption failed using public key: " + msg);
         }
     }
 
-    /**
-     * Thrown if an attempt is made to decrypt an invalid AES stream.
-     */
-    public static class InvalidAESStreamException extends Exception {
-        public InvalidAESStreamException() { super(); };
-        public InvalidAESStreamException(Exception e) { super(e); }
+    public static class HashingException extends Exception {
+        HashingException(String msg) {
+            super("Hashing failed: " + msg);
+        }
     }
 
+    public static class AESDecryptionException extends Exception {
+        AESDecryptionException(String msg) {
+            super("AES Decryption failed: " + msg);
+        }
+
+    }
 }
