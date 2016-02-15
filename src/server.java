@@ -130,13 +130,14 @@ public class server {
 
     private static int decryptFile(char[] password, InputStream inputStream, OutputStream outputStream) throws IOException,
             crypto.InvalidPasswordException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
-                    InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
+                    InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, ShortBufferException {
 
         // Read in ciphertext file size
         byte[] sizeBytes = new byte[Long.SIZE / Byte.SIZE];
         inputStream.read(sizeBytes);
-        //outputStream.write(sizeBytes);
-        //outputStream.flush();
+
+        long decryptSize = convertByteArrayToLong(sizeBytes);
+        System.out.println("val" + decryptSize);
 
         // Read in salt, keys, and authentication password
         byte[] saltBytes = new byte[SALT_SIZE];
@@ -158,19 +159,32 @@ public class server {
         byte[] buff = new byte[crypto.BUFF_SIZE];
         int read;
         byte[] decrypt;
-        while((read = inputStream.read(buff)) > 0) {
-            decrypt = decrpytCipher.update(buff, 0, read);
-            if(decrypt != null) {
-                outputStream.write(decrypt);
-            }
+
+//        do((read = inputStream.read(buff, 0, (int) decryptSize)) > 0) {
+//            decrypt = decrpytCipher.update(buff, 0, read);
+//            if(decrypt != null) {
+//                outputStream.write(decrypt);
+//            }
+//        }
+        // TODO: handle cast
+        // Read in and decrypt specified number of bytes
+        read = inputStream.read(buff, 0, (int) decryptSize);
+        decrypt = decrpytCipher.update(buff, 0, read);
+        if(decrypt != null) {
+            outputStream.write(decrypt);
         }
+        outputStream.flush();
+
+        //System.out.println("diff" + decrpytCipher.getBlockSize());
 
         // Decrypt final block
+        System.out.println("read" + read);
         decrypt = decrpytCipher.doFinal();
         if(decrypt != null) {
             outputStream.write(decrypt);
         }
         outputStream.flush();
+
         return crypto.AES_KEY_LENGTH;
     }
 
@@ -209,5 +223,14 @@ public class server {
         } catch(IOException e) {
             failWithMessage("Failed to close streams and sockets.");
         }
+    }
+
+    private static long convertByteArrayToLong(byte[] bytes) {
+        long value = 0;
+        // Use fact that first byte is most significant
+        for (int i = 0; i < bytes.length; i++) {
+            value = (value << 8) + (bytes[i] & 0xff);
+        }
+        return value;
     }
 }

@@ -83,7 +83,7 @@ public class client {
     }
     // TODO: handle when client starts first
     private static void sendFile(Socket socket, String password, String pubFile, String privFile) throws NoSuchPaddingException,
-            NoSuchAlgorithmException, InvalidKeyException, InvalidParameterSpecException, IOException, IllegalBlockSizeException, BadPaddingException {
+            NoSuchAlgorithmException, InvalidKeyException, InvalidParameterSpecException, IOException, IllegalBlockSizeException, BadPaddingException, InterruptedException {
 
         FileInputStream fis = null;
         BufferedInputStream bis = null;
@@ -103,14 +103,14 @@ public class client {
 
             // Send server AES secret encrypted using server's public key
             os.write(crypto.encryptRSAPublic(password.getBytes(), pubFile));
-
+            os.flush();
             // Send server encrypted ciphertext
             encryptFile(AES_KEY_LENGTH, password.toCharArray(), fis, os, myFile.length());
 
             // Hash the plaintext file
             // TODO: maybe send password size
             byte[] hashedPlaintext = crypto.generateHash(crypto.HASHING_ALGORITHM, FILE_TO_SEND);
-
+            Thread.sleep(1000);
             // Encrypt and send hashed plaintext using client's private RSA key
             os.write(crypto.encryptRSAPrivate(hashedPlaintext, privFile));
             os.flush();
