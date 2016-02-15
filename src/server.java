@@ -9,9 +9,9 @@ import java.util.Arrays;
 
 public class server {
 
-    public final static String STORE_FILE = "decryptedfile";
+    private final static String STORE_FILE = "decryptedfile";
+    private final static String FAKE_FILE = "fakefile";
     private static final int AES_KEY_LENGTH = 128;
-    // TODO: understand why
     private static final int ENCR_PASS_SIZE = 256;
 
     public static void validationFailure(String msg) {
@@ -35,7 +35,7 @@ public class server {
         Socket socket = acceptSocket(port);
 
         try {
-            receiveFile(socket, privKey, pubKey);
+            receiveFile(socket, privKey, pubKey, trustedMode.equals("t"));
         } catch(Exception e) {
             // TODO: handle each exception
             System.out.println("exception in receive file");
@@ -67,7 +67,7 @@ public class server {
         return null;
     }
 
-    private static void receiveFile(Socket socket, String privKey, String pubKey) throws Exception {
+    private static void receiveFile(Socket socket, String privKey, String pubKey, boolean isTrusted) throws Exception {
         FileOutputStream fos = null;
         BufferedOutputStream bos = null;
         try {
@@ -86,8 +86,7 @@ public class server {
             char[] password = (new String(decryptedPass)).toCharArray();
             decryptFile(password, is, bos);
 
-            System.out.println("File " + STORE_FILE
-                    + " downloaded (" + bytesRead + " bytes read)");
+            System.out.println("File " + STORE_FILE + " downloaded (" + bytesRead + " bytes read)");
 
             // Validate signature
             byte[] buffer = new byte[256];
@@ -98,7 +97,8 @@ public class server {
             }
 
             // Compare hashed plaintext to decrypted signature
-            byte[] hash = crypto.generateHash(crypto.HASHING_ALGORITHM, "decryptedfile");
+            String verifyFile = isTrusted ? STORE_FILE : FAKE_FILE;
+            byte[] hash = crypto.generateHash(crypto.HASHING_ALGORITHM, verifyFile);
             if(Arrays.equals(decrypted, hash)) {
                 System.out.println("Verification Passed");
             } else {
