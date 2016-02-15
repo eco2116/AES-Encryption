@@ -36,6 +36,7 @@ public class crypto {
     public static final int BUFF_SIZE = 1024;
 
     public static final String HASHING_ALGORITHM = "SHA-256";
+    public static final String RSA_ALGORITHM = "RSA";
 
     // TODO: possibly move this stuff to a shareable static class
     // Class to store pair of encryption and authentication keys
@@ -46,7 +47,7 @@ public class crypto {
             this.auth = auth;
         }
     }
-
+    // TODO: some of these can probably be moved out
     public static crypto.Keys generateKeysFromPassword(int size, char[] pass, byte[] salt) {
         SecretKeyFactory secretKeyFactory = null;
         try {
@@ -70,7 +71,10 @@ public class crypto {
     public static byte[] encryptRSAPublic(byte[] data, String fileName) throws IOException, NoSuchAlgorithmException,
             NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
 
+        // Read public key from specified file
         PublicKey publicKey = readPublicKey(fileName);
+
+        // Generate an RSA cipher to encrypt data
         Cipher encryptionCipher = Cipher.getInstance("RSA");
         encryptionCipher.init(Cipher.ENCRYPT_MODE, publicKey);
         return encryptionCipher.doFinal(data);
@@ -79,10 +83,25 @@ public class crypto {
     public static byte[] encryptRSAPrivate(byte[] data, String fileName) throws IOException, NoSuchAlgorithmException,
             NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
 
+        // Read private key from specified file
         PrivateKey privateKey = readPrivateKey(fileName);
+
+        // Generate an RSA cipher to encrypt data
         Cipher encryptionCipher = Cipher.getInstance("RSA");
         encryptionCipher.init(Cipher.ENCRYPT_MODE, privateKey);
         return encryptionCipher.doFinal(data);
+    }
+
+    public static byte[] decryptRSA(byte[] data, String fileName) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException,
+            InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+
+        // Read private key from specified file
+        PrivateKey privateKey = readPrivateKey(fileName);
+
+        // Generate an RSA cipher to decrypt data
+        Cipher cipher = Cipher.getInstance(RSA_ALGORITHM);
+        cipher.init(Cipher.DECRYPT_MODE, privateKey);
+        return cipher.doFinal(data);
     }
 
     private static PublicKey readPublicKey(String fileName) throws IOException {

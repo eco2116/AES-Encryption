@@ -16,6 +16,9 @@ public class server {
     private static final String AES_SPEC = "AES";
     private static final int AES_KEY_LENGTH = 128;
 
+    // TODO: understand why
+    private static final int ENCR_PASS_SIZE = 256;
+
     // TODO: Move to crypto
     // AES specification - changing will break existing encrypted streams!
     private static final String CIPHER_SPEC = "AES/CBC/PKCS5Padding";
@@ -44,8 +47,18 @@ public class server {
 //        int port = validatePort(args[0]);
 //        String trustedMode = validateTrustMode(args[1]);
 
+        String privKey = "server_private.key";
+
         Socket socket = acceptSocket();
-        receiveFile(socket);
+
+        try {
+            receiveFile(socket, privKey);
+        } catch(Exception e) {
+            // TODO: handle each exception
+            System.out.println("exception in receive file");
+            e.printStackTrace();
+        }
+
 
 
     }
@@ -73,28 +86,33 @@ public class server {
         return null;
     }
 
-    private static void receiveFile(Socket socket) {
+    private static void receiveFile(Socket socket, String privKey) throws Exception {
         FileOutputStream fos = null;
         BufferedOutputStream bos = null;
-        // Receive the file from client
+        // Receive and decrypt password from client
         try {
             int bytesRead;
             InputStream is;
-            int current;
-            byte[] myByteArray = new byte[FILE_SIZE];
+            byte[] myByteArray = new byte[ENCR_PASS_SIZE];
             is = socket.getInputStream();
             fos = new FileOutputStream(FILE_TO_RECEIVED);
             bos = new BufferedOutputStream(fos);
             bytesRead = is.read(myByteArray, 0, myByteArray.length);
-            current = bytesRead;
-            do {
-                bytesRead = is.read(myByteArray, current, (myByteArray.length - current));
-                if (bytesRead >= 0) current += bytesRead;
-            } while (bytesRead > -1);
-            bos.write(myByteArray, 0, current);
+
+
+//            current = bytesRead;
+//            do {
+//                bytesRead = is.read(myByteArray, current, (myByteArray.length - current));
+//                if (bytesRead >= 0) current += bytesRead;
+//            } while (bytesRead > -1);
+
+            byte[] decryptedPass = crypto.decryptRSA(myByteArray, privKey);
+            System.out.println(decryptedPass.length);
+            bos.write(decryptedPass, 0, 16);
+
             bos.flush();
             System.out.println("File " + FILE_TO_RECEIVED
-                    + " downloaded (" + current + " bytes read)");
+                    + " downloaded (" + bytesRead + " bytes read)");
         } catch (FileNotFoundException e) {
             failWithMessage("File could not be found.");
         } catch (IOException e) {

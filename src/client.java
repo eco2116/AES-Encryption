@@ -47,13 +47,14 @@ public class client {
          information for the RSA keys . Key components should be read from files and not have to be typed
          by the user.
          */
-        String password = validatePassword(args[0]);
-        String filename = validateFileName(args[1]);
+        // TODO: use args
+        String password = validatePassword("1234567890123456");
+        //String filename = validateFileName(args[1]);
 //        String address = validateIP(args[2]);
 //        int port = validatePort(args[3]);
 
         // TODO: input properly
-        String pubKey = "client_public.key";
+        String pubKey = "server_public.key";
         String privKey = "client_private.key";
 
         Socket socket = connectToServer();
@@ -101,13 +102,13 @@ public class client {
             os.write(crypto.encryptRSAPublic(password.getBytes(), pubFile));
 
             // Send server encrypted ciphertext
-            encryptFile(AES_KEY_LENGTH, password.toCharArray(), fis, os);
+            //encryptFile(AES_KEY_LENGTH, password.toCharArray(), fis, os);
 
             // Hash the plaintext file
             byte[] hashedPlaintext = crypto.generateHash(crypto.HASHING_ALGORITHM, FILE_TO_SEND);
 
             // Encrypt and send hashed plaintext using client's private RSA key
-            os.write(crypto.encryptRSAPrivate(hashedPlaintext, privFile));
+            //os.write(crypto.encryptRSAPrivate(hashedPlaintext, privFile));
 
             //System.out.println("Sending " + FILE_TO_SEND + "(" + mybytearray.length + " bytes)");
             //os.write(mybytearray, 0, mybytearray.length);
