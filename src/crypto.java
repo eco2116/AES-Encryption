@@ -186,9 +186,21 @@ public class crypto {
         }
     }
 
+    public static class RSAPrivateEncryptionException extends Exception {
+        RSAPrivateEncryptionException(String msg) {
+            super("RSA Encryption failed using private key: " + msg);
+        }
+    }
+
     public static class RSAPublicDecryptionException extends Exception {
         RSAPublicDecryptionException(String msg) {
             super("RSA Decryption failed using public key: " + msg);
+        }
+    }
+
+    public static class RSAPublicEncryptionException extends Exception {
+        RSAPublicEncryptionException(String msg) {
+            super("RSA Encryption failed using public key: " + msg);
         }
     }
 
@@ -202,6 +214,11 @@ public class crypto {
         AESDecryptionException(String msg) {
             super("AES Decryption failed: " + msg);
         }
+    }
 
+    public static class AESEncryptionException extends Exception {
+        AESEncryptionException(String msg) {
+            super("AES Encryption failed: " + msg);
+        }
     }
 }

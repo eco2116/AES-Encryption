@@ -76,7 +76,7 @@ public class server {
             byte[] myByteArray = new byte[ENCR_PASS_SIZE];
             is = socket.getInputStream();
 
-            try {
+            try { // Attempt to output stream for decrypted file
                 fos = new FileOutputStream(STORE_FILE);
             } catch(FileNotFoundException e) {
                 throw new FileNotFoundException("File not found by name: " + STORE_FILE);
@@ -90,15 +90,13 @@ public class server {
             // Convert byte stream to char stream for password (we know this is valid due to client-side password constraints)
             char[] password = (new String(decryptedPass)).toCharArray();
 
+            // AES decryption in CBC mode
             performAESDecryption(password, is, bos);
-
-
             System.out.println("File " + STORE_FILE + " downloaded (" + bytesRead + " bytes read)");
 
             // Validate signature
             byte[] buffer = new byte[256];
             byte[] decrypted = null;
-
             while ((is.read(buffer)) > 0) {
                 decrypted = performRSAPublicDecryption(buffer, pubKey);
             }
@@ -106,15 +104,14 @@ public class server {
             // Compare hashed plaintext to decrypted signature
             String verifyFile = isTrusted ? STORE_FILE : FAKE_FILE;
             byte[] hash = performHashing(verifyFile);
-
             if(Arrays.equals(decrypted, hash)) {
                 System.out.println("Verification Passed");
             } else {
                 System.out.println("Verification Failed");
             }
-
-            System.out.println("done");
-
+            System.out.println("Done");
+        
+        // Send user-friendly error messages based on step being performed, close sockets/streams and exit nicely
         } catch (crypto.RSAPrivateDecryptionException e) {
             System.out.println(e.getMessage());
         } catch (crypto.AESDecryptionException e) {

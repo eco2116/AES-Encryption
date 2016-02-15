@@ -29,10 +29,7 @@ public class client {
     public static void main (String[] args) {
 
         // Validate input
-        if(args.length != NUM_ARGS) {
-            validationFailure("Incorrect number of arguments.");
-        }
-
+        if(args.length != NUM_ARGS) { validationFailure("Incorrect number of arguments."); }
         String password = validatePassword(args[0]);
         String sendFile = validateFileName(args[1]);
         String address = validateIP(args[2]);
@@ -50,12 +47,7 @@ public class client {
         }
 
         // Send encrypted password, file, and signature to server
-        try {
-            sendFile(socket, password, pubKey, privKey, sendFile);
-        } catch(Exception e) {
-            // TODO: handle exceptions separately
-            failWithMessage("Failed to send file");
-        }
+        sendFile(socket, password, pubKey, privKey, sendFile);
     }
 
     private static Socket connectToServer(String addr, int port) throws IOException {
@@ -66,14 +58,13 @@ public class client {
             sock = new Socket(addr, port);
             System.out.println("Accepted connection : " + sock);
         } catch(IOException e) {
-            failWithMessage("Failed to create socket.");
+            System.out.println("Failed to create socket.");
         }
         return sock;
     }
 
     // TODO: handle when client starts first
-    private static void sendFile(Socket socket, String password, String pubFile, String privFile, String sendFile) throws NoSuchPaddingException,
-            NoSuchAlgorithmException, InvalidKeyException, InvalidParameterSpecException, IOException, IllegalBlockSizeException, BadPaddingException, InterruptedException {
+    private static void sendFile(Socket socket, String password, String pubFile, String privFile, String sendFile) {
 
         FileInputStream fis = null;
         BufferedInputStream bis = null;
@@ -81,48 +72,137 @@ public class client {
         try {
             // Send file to server
             File myFile = new File(sendFile);
-            fis = new FileInputStream(myFile);
+            try {
+                fis = new FileInputStream(myFile);
+            } catch (FileNotFoundException e) {
+                throw new FileNotFoundException("File not found with name: " + sendFile);
+            }
             bis = new BufferedInputStream(fis);
-
             os = socket.getOutputStream();
 
             // Send server AES secret encrypted using server's public key
-            os.write(crypto.encryptRSAPublic(password.getBytes(), pubFile));
+            performRSAPublicEncryption(password, pubFile, os);
             os.flush();
 
             // Send server encrypted ciphertext
-            encryptFile(AES_KEY_LENGTH, password.toCharArray(), fis, os, myFile.length());
+            performAESEncryption(password, fis, os, myFile);
 
             // Sleep so that server sees separation between file and signature
             Thread.sleep(1000);
 
             // Hash the plaintext file
-            byte[] hashedPlaintext = crypto.generateHash(crypto.HASHING_ALGORITHM, sendFile);
+            byte[] hashedPlaintext = performHashing(sendFile);
 
             // Encrypt and send hashed plaintext using client's private RSA key
-            byte[] signature = crypto.encryptRSAPrivate(hashedPlaintext, privFile);
+            byte[] signature = performRSAPrivateEncryption(hashedPlaintext, privFile);
             System.out.println("sizeee : " + signature.length);
             os.write(signature);
             os.flush();
 
+        // Send user-friendly error messages based on step being performed, close sockets/streams and exit nicely
+        } catch (crypto.RSAPublicEncryptionException e) {
+            System.out.println(e.getMessage());
+        } catch (crypto.AESEncryptionException e) {
+            System.out.println(e.getMessage());
+        } catch (crypto.HashingException e) {
+            System.out.println(e.getMessage());
+        } catch (crypto.RSAPrivateEncryptionException e) {
+            System.out.println(e.getMessage());
         } catch (FileNotFoundException e) {
-            e.printStackTrace();
-            // TODO: fix this
-            failWithMessage("File not found by name " + sendFile);
+            System.out.println(e.getMessage());
+        } catch (InterruptedException e) {
+            System.out.println("Client thread failed to sleep. Please try again.");
         } catch (IOException e) {
-            e.printStackTrace();
-            failWithMessage("Failed to send file to server.");
-        } finally {
+            System.out.println("Unexpected IO exception encountered.");
+        }
+        finally {
             closeStreamsAndSocket(fis, bis, socket);
         }
         System.out.println("Done.");
     }
 
+    private static void performRSAPublicEncryption(String password, String pubFile, OutputStream os) throws crypto.RSAPublicEncryptionException {
+        try { // Perform RSA encryption using public key on password
+            os.write(crypto.encryptRSAPublic(password.getBytes(), pubFile));
+
+        // Create user-friendly error messages
+        } catch (NoSuchAlgorithmException e) {
+            throw new crypto.RSAPublicEncryptionException("Could not find algorithm.");
+        } catch (NoSuchPaddingException e) {
+            throw new crypto.RSAPublicEncryptionException("Could not find padding.");
+        } catch (InvalidKeyException e) {
+            throw new crypto.RSAPublicEncryptionException("Invalid key.");
+        } catch (IllegalBlockSizeException e) {
+            throw new crypto.RSAPublicEncryptionException("Illegal block size.");
+        } catch (BadPaddingException e) {
+            throw new crypto.RSAPublicEncryptionException("Bad padding.");
+        } catch (IOException e) {
+            throw new crypto.RSAPublicEncryptionException("Unexpected IO exception.");
+        }
+    }
+
+    private static byte[] performRSAPrivateEncryption(byte[] hashedPlaintext, String privFile) throws crypto.RSAPrivateEncryptionException {
+        byte[] signature;
+        try {
+            // Perform RSA encrytpion using private key on hashed plaintext for signature
+            signature = crypto.encryptRSAPrivate(hashedPlaintext, privFile);
+        } catch (NoSuchAlgorithmException e) {
+            throw new crypto.RSAPrivateEncryptionException("Could not find algorithm.");
+        } catch (NoSuchPaddingException e) {
+            throw new crypto.RSAPrivateEncryptionException("Could not find padding.");
+        } catch (InvalidKeyException e) {
+            throw new crypto.RSAPrivateEncryptionException("Invalid key.");
+        } catch (IllegalBlockSizeException e) {
+            throw new crypto.RSAPrivateEncryptionException("Illegal block size.");
+        } catch (BadPaddingException e) {
+            throw new crypto.RSAPrivateEncryptionException("Bad padding.");
+        } catch (IOException e) {
+            throw new crypto.RSAPrivateEncryptionException("Unexpected IO exception");
+        }
+        return signature;
+    }
+
+    private static void performAESEncryption(String password, FileInputStream fis, OutputStream os, File myFile) throws crypto.AESEncryptionException {
+        try { // Perform AES encryption on file using password
+            encryptFile(AES_KEY_LENGTH, password.toCharArray(), fis, os, myFile.length());
+        // Create user-friendly error messages
+        } catch (NoSuchPaddingException e) {
+            throw new crypto.AESEncryptionException("Could not find padding.");
+        } catch (NoSuchAlgorithmException e) {
+            throw new crypto.AESEncryptionException("Could not find algorithm");
+        } catch (InvalidKeyException e) {
+            throw new crypto.AESEncryptionException("Invalid key");
+        } catch (InvalidParameterSpecException e) {
+            throw new crypto.AESEncryptionException("Invalid parameter spec");
+        } catch (IllegalBlockSizeException e) {
+            throw new crypto.AESEncryptionException("Illegal block size.");
+        } catch (BadPaddingException e) {
+            throw new crypto.AESEncryptionException("Bad padding");
+        } catch (IOException e) {
+            throw new crypto.AESEncryptionException("Unexpected IO exception.");
+        }
+    }
+
+    private static byte[] performHashing(String sendFile) throws crypto.HashingException {
+        byte[] hashedPlaintext;
+        try { // Perform hashing for signature
+            hashedPlaintext = crypto.generateHash(crypto.HASHING_ALGORITHM, sendFile);
+        // Generate user-friendly error messages
+        } catch (NoSuchAlgorithmException e) {
+            throw new crypto.HashingException("Could not find algorithm named: " + crypto.HASHING_ALGORITHM + ".");
+        } catch (FileNotFoundException e) {
+            throw new crypto.HashingException("Could not find file named: " + sendFile + ".");
+        } catch (IOException e) {
+            throw new crypto.HashingException("Unexpected IO exception encountered.");
+        }
+        return hashedPlaintext;
+    }
+
     private static String validatePassword(String input) {
         if(input.length() != 16) {
-            failWithMessage("Password must be 16 characters long.");
+            validationFailure("Password must be 16 characters long.");
         } else if(!input.matches("[A-Za-z0-9]+")) {
-            failWithMessage("Password must only contain alphanumeric characters.");
+            validationFailure("Password must only contain alphanumeric characters.");
         }
         return input;
     }
@@ -145,18 +225,12 @@ public class client {
         try {
             port = Integer.parseInt(input);
         } catch(NumberFormatException e) {
-            failWithMessage("Port must be an integer");
+            validationFailure("Port must be an integer");
         }
         if(port > 65536) {
-            failWithMessage("Port value out of range. Must be <= 6535");
+            validationFailure("Port value out of range. Must be <= 6535");
         }
         return port;
-    }
-
-    // TODO: print out usage
-    private static void failWithMessage(String msg) {
-        System.out.println("Client-side error encountered.");
-        System.out.println(msg);
     }
 
     private static void closeStreamsAndSocket(FileInputStream fis, BufferedInputStream bis, Socket sock) {
@@ -165,7 +239,7 @@ public class client {
             if (bis != null) bis.close();
             if (sock != null) sock.close();
         } catch(IOException e) {
-            failWithMessage("Failed to close streams and sockets.");
+            validationFailure("Failed to close streams and sockets.");
         }
     }
 
