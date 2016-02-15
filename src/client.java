@@ -129,6 +129,7 @@ public class client {
             //os.write(mybytearray, 0, mybytearray.length);
 
         } catch (FileNotFoundException e) {
+            e.printStackTrace();
             failWithMessage("File not found by name " + sendFile);
         } catch (IOException e) {
             failWithMessage("Failed to send file to server.");
