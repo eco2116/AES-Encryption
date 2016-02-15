@@ -1,17 +1,12 @@
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.PBEKeySpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 
 import java.net.Socket;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.security.spec.InvalidKeySpecException;
 import java.security.spec.InvalidParameterSpecException;
-import java.security.spec.KeySpec;
-import java.util.Arrays;
 import java.util.Random;
 
 public class client {
@@ -57,9 +52,13 @@ public class client {
 //        String address = validateIP(args[2]);
 //        int port = validatePort(args[3]);
 
+        // TODO: input properly
+        String pubKey = "client_public.key";
+        String privKey = "client_private.key";
+
         Socket socket = connectToServer();
         try {
-            sendFile(socket, password, filename);
+            sendFile(socket, password, pubKey, privKey);
         } catch(Exception e) {
             // TODO: handle exceptions separately
             failWithMessage("Failed to send file");
@@ -80,14 +79,15 @@ public class client {
         return sock;
     }
     // TODO: handle when client starts first
-    private static void sendFile(Socket socket, String password, String pubFile) throws NoSuchPaddingException, NoSuchAlgorithmException,
-            InvalidKeyException, InvalidParameterSpecException, IOException, IllegalBlockSizeException, BadPaddingException {
+    private static void sendFile(Socket socket, String password, String pubFile, String privFile) throws NoSuchPaddingException,
+            NoSuchAlgorithmException, InvalidKeyException, InvalidParameterSpecException, IOException, IllegalBlockSizeException, BadPaddingException {
 
         FileInputStream fis = null;
         BufferedInputStream bis = null;
         OutputStream os;
         try {
             // Send file to server
+            // TODO: remove this file to send thing
             File myFile = new File(FILE_TO_SEND);
             //byte[] mybytearray = new byte[(int) myFile.length()];
             fis = new FileInputStream(myFile);
@@ -98,10 +98,16 @@ public class client {
             os = socket.getOutputStream();
 
             // Send server AES secret encrypted using server's public key
-            os.write(crypto.encryptRSA(password.getBytes(), pubFile));
+            os.write(crypto.encryptRSAPublic(password.getBytes(), pubFile));
 
             // Send server encrypted ciphertext
             encryptFile(AES_KEY_LENGTH, password.toCharArray(), fis, os);
+
+            // Hash the plaintext file
+            byte[] hashedPlaintext = crypto.generateHash(crypto.HASHING_ALGORITHM, FILE_TO_SEND);
+
+            // Encrypt and send hashed plaintext using client's private RSA key
+            os.write(crypto.encryptRSAPrivate(hashedPlaintext, privFile));
 
             //System.out.println("Sending " + FILE_TO_SEND + "(" + mybytearray.length + " bytes)");
             //os.write(mybytearray, 0, mybytearray.length);

@@ -1,3 +1,4 @@
+import sun.nio.cs.StandardCharsets;
 import sun.security.util.BigInt;
 
 import javax.crypto.*;
@@ -5,12 +6,10 @@ import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.math.BigInteger;
-import java.security.InvalidKeyException;
-import java.security.KeyFactory;
-import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
+import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
+import java.security.spec.RSAPrivateKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.Arrays;
 
@@ -35,6 +34,8 @@ public class crypto {
 
     // Process input/output streams in chunks - arbitrary
     public static final int BUFF_SIZE = 1024;
+
+    public static final String HASHING_ALGORITHM = "SHA-256";
 
     // TODO: possibly move this stuff to a shareable static class
     // Class to store pair of encryption and authentication keys
@@ -66,12 +67,21 @@ public class crypto {
         return new crypto.Keys(enc, auth);
     }
 
-    public static byte[] encryptRSA(byte[] data, String fileName) throws IOException, NoSuchAlgorithmException,
+    public static byte[] encryptRSAPublic(byte[] data, String fileName) throws IOException, NoSuchAlgorithmException,
             NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
 
         PublicKey publicKey = readPublicKey(fileName);
         Cipher encryptionCipher = Cipher.getInstance("RSA");
         encryptionCipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        return encryptionCipher.doFinal(data);
+    }
+
+    public static byte[] encryptRSAPrivate(byte[] data, String fileName) throws IOException, NoSuchAlgorithmException,
+            NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+
+        PrivateKey privateKey = readPrivateKey(fileName);
+        Cipher encryptionCipher = Cipher.getInstance("RSA");
+        encryptionCipher.init(Cipher.ENCRYPT_MODE, privateKey);
         return encryptionCipher.doFinal(data);
     }
 
@@ -96,6 +106,50 @@ public class crypto {
             oin.close();
         }
         return null;
+    }
+
+    // TODO: maybe combine private / public methods
+    private static PrivateKey readPrivateKey(String fileName) throws IOException {
+        File file = new File(fileName);
+        FileInputStream fis = new FileInputStream(file);
+        ObjectInputStream oin = new ObjectInputStream(new BufferedInputStream(fis));
+
+        try {
+            BigInteger m = (BigInteger) oin.readObject();
+            BigInteger e = (BigInteger) oin.readObject();
+
+            RSAPrivateKeySpec keySpec = new RSAPrivateKeySpec(m, e);
+            KeyFactory fact = KeyFactory.getInstance("RSA");
+            return fact.generatePrivate(keySpec);
+
+        } catch(Exception e) {
+            // TODO: fix exceptions
+            failWithMessage("Failed to read private key.");
+        } finally {
+            fis.close();
+            oin.close();
+        }
+        return null;
+    }
+
+    public static byte[] generateHash(String type, String file) throws NoSuchAlgorithmException, FileNotFoundException,
+            IOException {
+
+        // Initialize message digest for given hashing algorithm and file input stream
+        MessageDigest messageDigest = MessageDigest.getInstance(type);
+        FileInputStream fis = new FileInputStream(file);
+
+        // Read plaintext in chunks and update the message digest
+        byte[] buffer = new byte[BUFF_SIZE];
+        int read;
+        while((read = fis.read(buffer)) != -1) {
+            messageDigest.update(buffer, 0, read);
+        }
+        // Finished using file input stream
+        fis.close();
+
+        // Digest hashed bytes
+        return messageDigest.digest();
     }
 
     public static void failWithMessage(String msg) {
