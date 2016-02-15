@@ -33,7 +33,7 @@ public class crypto {
     public static final int AUTH_ITERATIONS = 32768;
 
     // Process input/output streams in chunks - arbitrary
-    public static final int BUFF_SIZE = 1024;
+    public static final int BUFF_SIZE = 1024 * 1024;
 
     public static final String HASHING_ALGORITHM = "SHA-256";
     public static final String RSA_ALGORITHM = "RSA";

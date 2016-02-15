@@ -131,8 +131,13 @@ public class server {
                 //fos.flush();
             }
 
+            // Compare hashed plaintext to decrypted signature
             byte[] hash = crypto.generateHash(crypto.HASHING_ALGORITHM, "decryptedfile");
-            
+            if(Arrays.equals(decrypted, hash)) {
+                System.out.println("Verification Passed");
+            } else {
+                System.out.println("Verification Failed");
+            }
 
             System.out.println("done" + decrypted.length);
 
