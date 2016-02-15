@@ -3,6 +3,7 @@ import javax.crypto.spec.IvParameterSpec;
 import java.io.*;
 
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -29,6 +30,8 @@ public class client {
 
     // Process input/output streams in chunks - arbitrary
     private static final int BUFF_SIZE = 1024;
+    private static final long PAD_SIZE = 16;
+
 
     // TODO: throw exceptions up to main and close everything there!!
     // TODO: cite https://www.owasp.org/index.php/Using_the_Java_Cryptographic_Extensions#AES_Encryption_and_Decryption
@@ -89,6 +92,7 @@ public class client {
             // Send file to server
             // TODO: remove this file to send thing
             File myFile = new File(FILE_TO_SEND);
+            System.out.println("file size:" + myFile.length());
             //byte[] mybytearray = new byte[(int) myFile.length()];
             fis = new FileInputStream(myFile);
             bis = new BufferedInputStream(fis);
@@ -101,17 +105,19 @@ public class client {
             os.write(crypto.encryptRSAPublic(password.getBytes(), pubFile));
 
             // Send server encrypted ciphertext
-            encryptFile(AES_KEY_LENGTH, password.toCharArray(), fis, os);
+            encryptFile(AES_KEY_LENGTH, password.toCharArray(), fis, os, myFile.length());
 
             // Hash the plaintext file
-            //byte[] hashedPlaintext = crypto.generateHash(crypto.HASHING_ALGORITHM, FILE_TO_SEND);
+            // TODO: maybe send password size
+            byte[] hashedPlaintext = crypto.generateHash(crypto.HASHING_ALGORITHM, FILE_TO_SEND);
 
             // Encrypt and send hashed plaintext using client's private RSA key
-            //os.write(crypto.encryptRSAPrivate(hashedPlaintext, privFile));
+            os.write(crypto.encryptRSAPrivate(hashedPlaintext, privFile));
+            os.flush();
 
             //System.out.println("Sending " + FILE_TO_SEND + "(" + mybytearray.length + " bytes)");
             //os.write(mybytearray, 0, mybytearray.length);
-            //os.flush();
+
         } catch (FileNotFoundException e) {
             failWithMessage("File not found by name " + FILE_TO_SEND);
         } catch (IOException e) {
@@ -170,7 +176,7 @@ public class client {
         }
     }
 
-    private static void encryptFile(int keySize, char[] pass, InputStream inputStream, OutputStream outputStream)
+    private static void encryptFile(int keySize, char[] pass, InputStream inputStream, OutputStream outputStream, long fileSize)
             throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, InvalidParameterSpecException,
                     IOException, IllegalBlockSizeException, BadPaddingException {
 
@@ -180,6 +186,16 @@ public class client {
 //            // TODO: throw an exception
 //            System.exit(0);
 //        }
+        byte[] bytes = ByteBuffer.allocate(Long.SIZE / Byte.SIZE).putLong(fileSize + PAD_SIZE).array();
+        outputStream.write(bytes);
+        // Send server the size in bytes of the encrypted file to be read
+//        ByteBuffer byteBuffer = ByteBuffer.allocate(Long.SIZE);
+//        byteBuffer.putLong(fileSize + PAD_SIZE);
+//        outputStream.write(byteBuffer.array());
+
+        //PrintWriter pw = new PrintWriter(new BufferedWriter(new OutputStreamWriter(outputStream)));
+        //pw.print(fileSize + PAD_SIZE);
+        //pw.close();
 
         // Generate salt and keys (for authentication and encryption)
         byte[] salt = generateRandomSalt(SALT_SIZE);
@@ -195,7 +211,7 @@ public class client {
         byte[] iv = encrCipher.getParameters().getParameterSpec(IvParameterSpec.class).getIV();
 
         // Send authentication and AES initialization data
-        // outputStream.write(keySize / 8);
+        // System.out.println(keySize / 8);
         outputStream.write(salt);
         outputStream.write(secret.auth.getEncoded());
         outputStream.write(iv);
@@ -203,8 +219,12 @@ public class client {
         // Use a buffer to send chunks of encrypted data to server
         byte[] buff = new byte[BUFF_SIZE];
         int read;
+        int totalRead = 0;
         byte[] encr;
+
+
         while ((read = inputStream.read(buff)) > 0) {
+            totalRead += read;
             encr = encrCipher.update(buff, 0, read);
             if(encr != null) {
                 outputStream.write(encr);
@@ -213,8 +233,10 @@ public class client {
         // Final encryption block
         encr = encrCipher.doFinal();
         if(encr != null) {
+            totalRead += encr.length;
             outputStream.write(encr);
         }
+        System.out.println("total read: " + totalRead);
     }
 
     // Generate a random salt for secure password hashing

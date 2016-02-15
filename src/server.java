@@ -32,6 +32,8 @@ public class server {
     // Process input/output streams in chunks - arbitrary
     private static final int BUFF_SIZE = 1024;
 
+    // TODO: is this really what it is?
+
     // TODO: cite http://www.rgagnon.com/javadetails/java-0542.html
     public static void main(String[] args) {
         /**
@@ -129,6 +131,12 @@ public class server {
     private static int decryptFile(char[] password, InputStream inputStream, OutputStream outputStream) throws IOException,
             crypto.InvalidPasswordException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
                     InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
+
+        // Read in ciphertext file size
+        byte[] sizeBytes = new byte[Long.SIZE / Byte.SIZE];
+        inputStream.read(sizeBytes);
+        //outputStream.write(sizeBytes);
+        //outputStream.flush();
 
         // Read in salt, keys, and authentication password
         byte[] saltBytes = new byte[SALT_SIZE];
