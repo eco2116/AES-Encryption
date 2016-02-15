@@ -1,16 +1,33 @@
+import javax.crypto.*;
+import javax.crypto.spec.IvParameterSpec;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
+import java.security.spec.InvalidParameterSpecException;
+import java.util.Arrays;
 
 public class server {
 
     public final static int SOCKET_PORT = 13267;  // you may change this
     public final static String FILE_TO_RECEIVED = "test_new.txt";  // you may change this
     public final static int FILE_SIZE = 6022386;
+    private static final String AES_SPEC = "AES";
+    private static final int AES_KEY_LENGTH = 128;
+
+    // TODO: Move to crypto
+    // AES specification - changing will break existing encrypted streams!
+    private static final String CIPHER_SPEC = "AES/CBC/PKCS5Padding";
+
+    // Key derivation specification - changing will break existing streams!
+    private static final String KEY_GENERAITON_SPEC = "PBKDF2WithHmacSHA1";
+    private static final int SALT_SIZE = 16; // in bytes
+    private static final int AUTH_SIZE = 8; // in bytes
+    private static final int AUTH_ITERATIONS = 32768;
+
+    // Process input/output streams in chunks - arbitrary
+    private static final int BUFF_SIZE = 1024;
 
     // TODO: cite http://www.rgagnon.com/javadetails/java-0542.html
     public static void main(String[] args) {
@@ -85,6 +102,45 @@ public class server {
         } finally {
             closeStreamsAndSocket(fos, bos, socket);
         }
+    }
+
+    private static int decryptFile(char[] password, InputStream inputStream, OutputStream outputStream) throws IOException,
+            crypto.InvalidPasswordException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
+                    InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
+
+        // Read in salt, keys, and authentication password
+        byte[] saltBytes = new byte[SALT_SIZE];
+        inputStream.read(saltBytes);
+        crypto.Keys keys = crypto.generateKeysFromPassword(AES_KEY_LENGTH, password, saltBytes);
+        byte[] auth = new byte[crypto.AUTH_SIZE];
+        inputStream.read(auth);
+        if(!Arrays.equals(keys.auth.getEncoded(), auth)) {
+            throw new crypto.InvalidPasswordException();
+        }
+
+        // Initialize AES decryption cipher
+        byte[] iv = new byte[crypto.IV_SIZE];
+        inputStream.read(iv);
+        Cipher decrpytCipher = Cipher.getInstance(crypto.CIPHER_SPEC);
+        decrpytCipher.init(Cipher.DECRYPT_MODE, keys.encr, new IvParameterSpec(iv));
+
+        // Use a buffer to decrypt and write to disk
+        byte[] buff = new byte[crypto.BUFF_SIZE];
+        int read;
+        byte[] decrypt;
+        while((read = inputStream.read(buff)) > 0) {
+            decrypt = decrpytCipher.update(buff, 0, read);
+            if(decrypt != null) {
+                outputStream.write(decrypt);
+            }
+        }
+
+        // Decrypt final block
+        decrypt = decrpytCipher.doFinal();
+        if(decrypt != null) {
+            outputStream.write(decrypt);
+        }
+        return crypto.AES_KEY_LENGTH;
     }
 
     private static int validatePort(String input) {

@@ -52,13 +52,19 @@ public class client {
          information for the RSA keys . Key components should be read from files and not have to be typed
          by the user.
          */
-//        String password = validatePassword(args[0]);
+        String password = validatePassword(args[0]);
 //        String filename = validateFileName(args[1]);
 //        String address = validateIP(args[2]);
 //        int port = validatePort(args[3]);
 
         Socket socket = connectToServer();
-        sendFile(socket);
+        try {
+            sendFile(socket, password);
+        } catch(Exception e) {
+            // TODO: handle exceptions separately
+            failWithMessage("Failed to send file");
+        }
+
     }
 
     private static Socket connectToServer() {
@@ -74,21 +80,27 @@ public class client {
         return sock;
     }
     // TODO: handle when client starts first
-    private static void sendFile(Socket socket) {
+    private static void sendFile(Socket socket, String password) throws NoSuchPaddingException, NoSuchAlgorithmException,
+            InvalidKeyException, InvalidParameterSpecException, IOException, IllegalBlockSizeException, BadPaddingException {
+
         FileInputStream fis = null;
         BufferedInputStream bis = null;
         OutputStream os;
         try {
             // Send file to server
             File myFile = new File(FILE_TO_SEND);
-            byte[] mybytearray = new byte[(int) myFile.length()];
+            //byte[] mybytearray = new byte[(int) myFile.length()];
             fis = new FileInputStream(myFile);
             bis = new BufferedInputStream(fis);
-            bis.read(mybytearray, 0, mybytearray.length);
+            //bis.read(mybytearray, 0, mybytearray.length);
+
+
             os = socket.getOutputStream();
-            System.out.println("Sending " + FILE_TO_SEND + "(" + mybytearray.length + " bytes)");
-            os.write(mybytearray, 0, mybytearray.length);
-            os.flush();
+            encryptFile(AES_KEY_LENGTH, password.toCharArray(), fis, os);
+
+            //System.out.println("Sending " + FILE_TO_SEND + "(" + mybytearray.length + " bytes)");
+            //os.write(mybytearray, 0, mybytearray.length);
+            //os.flush();
         } catch (FileNotFoundException e) {
             failWithMessage("File not found by name " + FILE_TO_SEND);
         } catch (IOException e) {
@@ -151,16 +163,16 @@ public class client {
             throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, InvalidParameterSpecException,
                     IOException, IllegalBlockSizeException, BadPaddingException {
 
-        // Check for valid key length
-        if(keySize != AES_KEY_LENGTH) {
-            failWithMessage("Invalid AES key size.");
-            // TODO: throw an exception
-            System.exit(0);
-        }
+//        // Check for valid key length
+//        if(keySize != AES_KEY_LENGTH) {
+//            failWithMessage("Invalid AES key size.");
+//            // TODO: throw an exception
+//            System.exit(0);
+//        }
 
         // Generate salt and keys (for authentication and encryption)
         byte[] salt = generateRandomSalt(SALT_SIZE);
-        Keys secret = generateKeysFromPassword(keySize, pass, salt);
+        crypto.Keys secret = crypto.generateKeysFromPassword(keySize, pass, salt);
 
         Cipher encrCipher = null;
 
@@ -172,7 +184,7 @@ public class client {
         byte[] iv = encrCipher.getParameters().getParameterSpec(IvParameterSpec.class).getIV();
 
         // Send authentication and AES initialization data
-        //outputStream.write(keySize / 8);
+        // outputStream.write(keySize / 8);
         outputStream.write(salt);
         outputStream.write(secret.auth.getEncoded());
         outputStream.write(iv);
@@ -194,41 +206,12 @@ public class client {
         }
     }
 
-    private static Keys generateKeysFromPassword(int size, char[] pass, byte[] salt) {
-        SecretKeyFactory secretKeyFactory = null;
-        try {
-            secretKeyFactory = SecretKeyFactory.getInstance(KEY_GENERAITON_SPEC);
-        } catch(NoSuchAlgorithmException e) {
-            failWithMessage("Failed to generate secret key factor.");
-        }
-        KeySpec keySpec = new PBEKeySpec(pass, salt, AUTH_ITERATIONS, size + AUTH_SIZE * 8);
-        SecretKey tmpKey = null;
-        try {
-            tmpKey = secretKeyFactory.generateSecret(keySpec);
-        } catch(InvalidKeySpecException e) {
-            failWithMessage("Failed to generate secret due to invalid key spec.");
-        }
-        byte[] key = tmpKey.getEncoded();
-        SecretKey auth = new SecretKeySpec(Arrays.copyOfRange(key, 0, AUTH_SIZE), AES_SPEC);
-        SecretKey enc = new SecretKeySpec(Arrays.copyOfRange(key, AUTH_SIZE, key.length), AES_SPEC);
-        return new Keys(enc, auth);
-    }
-
     // Generate a random salt for secure password hashing
     private static byte[] generateRandomSalt(int size) {
         Random random = new SecureRandom();
         byte[] saltBytes = new byte[size];
         random.nextBytes(saltBytes);
         return saltBytes;
-    }
-
-    // Class to store pair of encryption and authentication keys
-    private static class Keys {
-        public final SecretKey encr, auth;
-        public Keys(SecretKey encr, SecretKey auth) {
-            this.encr = encr;
-            this.auth = auth;
-        }
     }
 
 }
