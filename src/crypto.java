@@ -26,12 +26,15 @@ public class crypto {
     public static final String KEY_GENERATION_SPEC = "PBKDF2WithHmacSHA1";
     public static final String HASHING_ALGORITHM = "SHA-256";
     public static final String RSA_ALGORITHM = "RSA";
+    public static final String RSA_KEY_EXTENSION = ".key";
 
     public static final int IV_SIZE = 16;
     public static final int SALT_SIZE = 16;
     public static final int AUTH_SIZE = 8;
     public static final int AUTH_ITERATIONS = 32768;
     public static final int BUFF_SIZE = 1024 * 1024;
+    public static final int PRIVATE_RSA_KEY_SIZE = 751;
+    public static final int PUBLIC_RSA_KEY_SIZE = 498;
 
     // Class to store pair of encryption and authentication keys
     public static class Keys {

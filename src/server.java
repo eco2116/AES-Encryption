@@ -36,8 +36,8 @@ public class server {
         if(args.length != 4) { validationFailure("Incorrect number of arguments."); }
         int port = validatePort(args[0]);
         String trustedMode = validateTrustMode(args[1]);
-        String privKey = validateFileName(args[2]);
-        String pubKey = validateFileName(args[3]);
+        String privKey = validateKey(args[2], false);
+        String pubKey = validateKey(args[3], true);
 
         // Wait for client to accept connection on socket
         Socket socket = acceptSocket(port);
@@ -317,6 +317,23 @@ public class server {
         File validate = new File(input);
         if(!validate.canRead()) {
             validationFailure("Cannot read from file: " + input);
+        }
+        return input;
+    }
+
+    private static String validateKey(String input, boolean isPublic) {
+        // Make sure file is readable
+        validateFileName(input);
+
+        // Keys generated from generatekeys.java must end with .key and be of the appropriate size
+        if(!input.endsWith(crypto.RSA_KEY_EXTENSION)) {
+            validationFailure("Keys must have .key extension");
+        }
+        File file = new File(input);
+        if(isPublic && file.length() != crypto.PUBLIC_RSA_KEY_SIZE) {
+            validationFailure("Invalid public RSA key size. Please generate new keys using generatekeys.");
+        } else if(!isPublic && file.length() != crypto.PRIVATE_RSA_KEY_SIZE) {
+            validationFailure("Invalid private RSA key size. Please generate new keys using generatekey.");
         }
         return input;
     }

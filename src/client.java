@@ -46,8 +46,8 @@ public class client {
         String sendFile = validateFileName(args[1]);
         String address = validateIP(args[2]);
         int port = validatePort(args[3]);
-        String pubKey = validateFileName(args[4]);
-        String privKey = validateFileName(args[5]);
+        String pubKey = validateKey(args[4], true);
+        String privKey = validateKey(args[5], false);
 
         // Connect to server on specified address and port
         Socket socket = null;
@@ -259,6 +259,23 @@ public class client {
             validationFailure("Port value out of range. Must be <= 6535");
         }
         return port;
+    }
+
+    private static String validateKey(String input, boolean isPublic) {
+        // Make sure file is readable
+        validateFileName(input);
+
+        // Keys generated from generatekeys.java must end with .key and be of the appropriate size
+        if(!input.endsWith(crypto.RSA_KEY_EXTENSION)) {
+            validationFailure("Keys must have .key extension");
+        }
+        File file = new File(input);
+        if(isPublic && file.length() != crypto.PUBLIC_RSA_KEY_SIZE) {
+            validationFailure("Invalid public RSA key size. Please generate new keys using generatekeys.");
+        } else if(!isPublic && file.length() != crypto.PRIVATE_RSA_KEY_SIZE) {
+            validationFailure("Invalid private RSA key size. Please generate new keys using generatekey.");
+        }
+        return input;
     }
 
     private static void closeStreamsAndSocket(FileInputStream fis, BufferedInputStream bis, Socket sock) {
