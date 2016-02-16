@@ -10,25 +10,29 @@ import java.security.spec.RSAPrivateKeySpec;
 import java.security.spec.RSAPublicKeySpec;
 import java.util.Arrays;
 
+/**
+ * Evan O'Connor (eco2116)
+ * Network Security - Programming Assignment 1
+ *
+ * crypto.java
+ *
+ * Helper class for cryptographic functions to be used by server, client
+ *
+ */
 public class crypto {
 
     public static final String AES_SPEC = "AES";
-    public static final int IV_SIZE = 16;
-    public static final int SALT_SIZE = 16; // in bytes
     public static final String CIPHER_SPEC = "AES/CBC/PKCS5Padding";
-
-    // Key derivation specification - changing will break existing streams!
-    public static final String KEY_GENERAITON_SPEC = "PBKDF2WithHmacSHA1";
-    public static final int AUTH_SIZE = 8; // in bytes
-    public static final int AUTH_ITERATIONS = 32768;
-
-    // Process input/output streams in chunks - arbitrary
-    public static final int BUFF_SIZE = 1024 * 1024;
-
+    public static final String KEY_GENERATION_SPEC = "PBKDF2WithHmacSHA1";
     public static final String HASHING_ALGORITHM = "SHA-256";
     public static final String RSA_ALGORITHM = "RSA";
 
-    // TODO: possibly move this stuff to a shareable static class
+    public static final int IV_SIZE = 16;
+    public static final int SALT_SIZE = 16;
+    public static final int AUTH_SIZE = 8;
+    public static final int AUTH_ITERATIONS = 32768;
+    public static final int BUFF_SIZE = 1024 * 1024;
+
     // Class to store pair of encryption and authentication keys
     public static class Keys {
         public final SecretKey encr, auth;
@@ -37,29 +41,25 @@ public class crypto {
             this.auth = auth;
         }
     }
-    // TODO: some of these can probably be moved out
-    public static crypto.Keys generateKeysFromPassword(int size, char[] pass, byte[] salt) {
-        SecretKeyFactory secretKeyFactory = null;
-        try {
-            secretKeyFactory = SecretKeyFactory.getInstance(KEY_GENERAITON_SPEC);
-        } catch(NoSuchAlgorithmException e) {
-            failWithMessage("Failed to generate secret key factor.");
-        }
+
+    public static crypto.Keys generateKeysFromPassword(int size, char[] pass, byte[] salt) throws NoSuchAlgorithmException,
+            InvalidKeySpecException {
+
+        // Initialize and generate secret keys from password and pseudorandom salt
+        SecretKeyFactory secretKeyFactory = SecretKeyFactory.getInstance(KEY_GENERATION_SPEC);
         KeySpec keySpec = new PBEKeySpec(pass, salt, AUTH_ITERATIONS, size + AUTH_SIZE * 8);
-        SecretKey tmpKey = null;
-        try {
-            tmpKey = secretKeyFactory.generateSecret(keySpec);
-        } catch(InvalidKeySpecException e) {
-            failWithMessage("Failed to generate secret due to invalid key spec.");
-        }
+        SecretKey tmpKey = secretKeyFactory.generateSecret(keySpec);
         byte[] key = tmpKey.getEncoded();
+
+        // Save encryption and authorization keys in crypto.Keys static storage class
         SecretKey auth = new SecretKeySpec(Arrays.copyOfRange(key, 0, AUTH_SIZE), AES_SPEC);
         SecretKey enc = new SecretKeySpec(Arrays.copyOfRange(key, AUTH_SIZE, key.length), AES_SPEC);
         return new crypto.Keys(enc, auth);
     }
 
     public static byte[] encryptRSAPublic(byte[] data, String fileName) throws IOException, NoSuchAlgorithmException,
-            NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+            NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, ClassNotFoundException,
+                InvalidKeySpecException {
 
         // Read public key from specified file
         PublicKey publicKey = readPublicKey(fileName);
@@ -71,7 +71,8 @@ public class crypto {
     }
 
     public static byte[] encryptRSAPrivate(byte[] data, String fileName) throws IOException, NoSuchAlgorithmException,
-            NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+            NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, ClassNotFoundException,
+                InvalidKeySpecException {
 
         // Read private key from specified file
         PrivateKey privateKey = readPrivateKey(fileName);
@@ -83,7 +84,7 @@ public class crypto {
     }
 
     public static byte[] decryptRSAPrivate(byte[] data, String fileName) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException,
-            InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+            InvalidKeyException, IllegalBlockSizeException, BadPaddingException, ClassNotFoundException, InvalidKeySpecException {
 
         // Read private key from specified file
         PrivateKey privateKey = readPrivateKey(fileName);
@@ -95,7 +96,7 @@ public class crypto {
     }
 
     public static byte[] decryptRSAPublic(byte[] data, String fileName) throws IOException, NoSuchAlgorithmException, NoSuchPaddingException,
-            InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+            InvalidKeyException, IllegalBlockSizeException, BadPaddingException, ClassNotFoundException, InvalidKeySpecException {
 
         // Read public key from specified file
         PublicKey publicKey = readPublicKey(fileName);
@@ -106,55 +107,41 @@ public class crypto {
         return cipher.doFinal(data);
     }
 
-    private static PublicKey readPublicKey(String fileName) throws IOException {
+    private static PublicKey readPublicKey(String fileName) throws IOException, ClassNotFoundException,
+            NoSuchAlgorithmException, InvalidKeySpecException {
         File file = new File(fileName);
         FileInputStream fis = new FileInputStream(file);
         ObjectInputStream oin = new ObjectInputStream(new BufferedInputStream(fis));
 
-        try {
-            BigInteger m = (BigInteger) oin.readObject();
-            BigInteger e = (BigInteger) oin.readObject();
+        BigInteger m = (BigInteger) oin.readObject();
+        BigInteger e = (BigInteger) oin.readObject();
+        fis.close();
+        oin.close();
 
-            RSAPublicKeySpec keySpec = new RSAPublicKeySpec(m, e);
-            KeyFactory fact = KeyFactory.getInstance("RSA");
-            return fact.generatePublic(keySpec);
-
-        } catch(Exception e) {
-            // TODO: fix exceptions
-            failWithMessage("Failed to read public key.");
-        } finally {
-            fis.close();
-            oin.close();
-        }
-        return null;
+        RSAPublicKeySpec keySpec = new RSAPublicKeySpec(m, e);
+        KeyFactory fact = KeyFactory.getInstance("RSA");
+        return fact.generatePublic(keySpec);
     }
 
-    // TODO: maybe combine private / public methods
-    private static PrivateKey readPrivateKey(String fileName) throws IOException {
+    private static PrivateKey readPrivateKey(String fileName) throws IOException, ClassNotFoundException,
+            NoSuchAlgorithmException, InvalidKeySpecException {
         File file = new File(fileName);
         FileInputStream fis = new FileInputStream(file);
         ObjectInputStream oin = new ObjectInputStream(new BufferedInputStream(fis));
 
-        try {
-            BigInteger m = (BigInteger) oin.readObject();
-            BigInteger e = (BigInteger) oin.readObject();
+        // Read in modulus and exponent as BigIntegers
+        BigInteger m = (BigInteger) oin.readObject();
+        BigInteger e = (BigInteger) oin.readObject();
+        fis.close();
+        oin.close();
 
-            RSAPrivateKeySpec keySpec = new RSAPrivateKeySpec(m, e);
-            KeyFactory fact = KeyFactory.getInstance("RSA");
-            return fact.generatePrivate(keySpec);
-
-        } catch(Exception e) {
-            // TODO: fix exceptions
-            failWithMessage("Failed to read private key.");
-        } finally {
-            fis.close();
-            oin.close();
-        }
-        return null;
+        // Create initialize and generate private key
+        RSAPrivateKeySpec keySpec = new RSAPrivateKeySpec(m, e);
+        KeyFactory fact = KeyFactory.getInstance("RSA");
+        return fact.generatePrivate(keySpec);
     }
 
-    public static byte[] generateHash(String type, String file) throws NoSuchAlgorithmException, FileNotFoundException,
-            IOException {
+    public static byte[] generateHash(String type, String file) throws NoSuchAlgorithmException, IOException {
 
         // Initialize message digest for given hashing algorithm and file input stream
         MessageDigest messageDigest = MessageDigest.getInstance(type);
@@ -171,11 +158,6 @@ public class crypto {
 
         // Digest hashed bytes
         return messageDigest.digest();
-    }
-
-    public static void failWithMessage(String msg) {
-        System.out.println("Server-side error encountered.");
-        System.out.println(msg);
     }
 
     public static class InvalidPasswordException extends Exception { }

@@ -9,16 +9,28 @@ import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.InvalidParameterSpecException;
 import java.util.Random;
 
+/**
+ * Evan O'Connor (eco2116)
+ * Network Security - Programming Assignment 1
+ *
+ * client.java
+ *
+ * The client encrypts and signs a file, sending the server an encrypted key, the encrypted file, and the signature
+ *
+ */
 public class client {
 
-    private static final int AES_KEY_LENGTH = 128;
     private static final String CIPHER_SPEC = "AES/CBC/PKCS5Padding";
+
+    private static final int AES_KEY_LENGTH = 128;
     private static final int BUFF_SIZE = 1024;
-    private static final long PAD_SIZE = 16;
     private static final int NUM_ARGS = 6;
+
+    private static final long PAD_SIZE = 16;
 
     public static void validationFailure(String msg) {
         System.out.println(msg);
@@ -26,7 +38,6 @@ public class client {
         System.exit(0);
     }
 
-    // TODO: cite https://www.owasp.org/index.php/Using_the_Java_Cryptographic_Extensions#AES_Encryption_and_Decryption
     public static void main (String[] args) {
 
         // Validate input
@@ -53,7 +64,7 @@ public class client {
     private static Socket connectToServer(String addr, int port) throws IOException {
         Socket sock = null;
         try {
-            System.out.println("Connecting...");
+            System.out.println("Connecting to server...");
             // Make a connection to the server socket
             sock = new Socket(addr, port);
             System.out.println("Accepted connection : " + sock);
@@ -138,6 +149,10 @@ public class client {
             throw new crypto.RSAPublicEncryptionException("Illegal block size.");
         } catch (BadPaddingException e) {
             throw new crypto.RSAPublicEncryptionException("Bad padding.");
+        } catch (InvalidKeySpecException e) {
+            throw new crypto.RSAPublicEncryptionException("Invalid key spec.");
+        } catch (ClassNotFoundException e) {
+            throw new crypto.RSAPublicEncryptionException("Class not found: BigInteger.");
         } catch (IOException e) {
             throw new crypto.RSAPublicEncryptionException("Unexpected IO exception.");
         }
@@ -158,6 +173,10 @@ public class client {
             throw new crypto.RSAPrivateEncryptionException("Illegal block size.");
         } catch (BadPaddingException e) {
             throw new crypto.RSAPrivateEncryptionException("Bad padding.");
+        } catch (ClassNotFoundException e) {
+            throw new crypto.RSAPrivateEncryptionException("Class not found: BigInteger");
+        } catch (InvalidKeySpecException e) {
+            throw new crypto.RSAPrivateEncryptionException("Invalid key spec");
         } catch (IOException e) {
             throw new crypto.RSAPrivateEncryptionException("Unexpected IO exception");
         }
@@ -180,6 +199,8 @@ public class client {
             throw new crypto.AESEncryptionException("Illegal block size.");
         } catch (BadPaddingException e) {
             throw new crypto.AESEncryptionException("Bad padding");
+        } catch (InvalidKeySpecException e) {
+            throw new crypto.AESEncryptionException("Invalid key spec");
         } catch (IOException e) {
             throw new crypto.AESEncryptionException("Unexpected IO exception.");
         }
@@ -217,7 +238,6 @@ public class client {
         return input;
     }
 
-    // TODO: implement
     private static String validateIP(String input) {
         try {
             // Check if host exists
@@ -253,7 +273,7 @@ public class client {
 
     private static void encryptFile(int keySize, char[] pass, InputStream inputStream, OutputStream outputStream, long fileSize)
             throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, InvalidParameterSpecException,
-                    IOException, IllegalBlockSizeException, BadPaddingException {
+                    IOException, IllegalBlockSizeException, BadPaddingException, InvalidKeySpecException {
 
         // Send server the size in bytes of the encrypted file to be read
         byte[] bytes = ByteBuffer.allocate(Long.SIZE / Byte.SIZE).putLong(fileSize + PAD_SIZE).array();
@@ -263,7 +283,7 @@ public class client {
         byte[] salt = generateRandomSalt(crypto.SALT_SIZE);
         crypto.Keys secret = crypto.generateKeysFromPassword(keySize, pass, salt);
 
-        Cipher encrCipher = null;
+        Cipher encrCipher;
 
         // Initialize AES cipher
         encrCipher = Cipher.getInstance(CIPHER_SPEC);
@@ -280,11 +300,9 @@ public class client {
         // Use a buffer to send chunks of encrypted data to server
         byte[] buff = new byte[BUFF_SIZE];
         int read;
-        int totalRead = 0;
         byte[] encr;
 
         while ((read = inputStream.read(buff)) > 0) {
-            totalRead += read;
             encr = encrCipher.update(buff, 0, read);
             if(encr != null) {
                 outputStream.write(encr);

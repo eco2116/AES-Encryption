@@ -5,12 +5,23 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.security.*;
+import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 
+/**
+ * Evan O'Connor (eco2116)
+ * Network Security - Programming Assignment 1
+ *
+ * server.java
+ *
+ * The server decrypts the file sent from the client, checks the signature and
+ * indicates whether the signature verification passed or failed.
+ */
 public class server {
 
     private final static String STORE_FILE = "decryptedfile";
     private final static String FAKE_FILE = "fakefile";
+
     private static final int AES_KEY_LENGTH = 128;
     private static final int ENCR_PASS_SIZE = 256;
 
@@ -20,7 +31,6 @@ public class server {
         System.exit(0);
     }
 
-    // TODO: cite http://www.rgagnon.com/javadetails/java-0542.html
     public static void main(String[] args) {
         // Input and validate client parameters
         if(args.length != 4) { validationFailure("Incorrect number of arguments."); }
@@ -64,7 +74,6 @@ public class server {
         FileOutputStream fos = null;
         BufferedOutputStream bos = null;
         try {
-            int bytesRead; // Receive and decrypt password from client
             InputStream is;
             byte[] myByteArray = new byte[ENCR_PASS_SIZE];
             is = socket.getInputStream();
@@ -75,7 +84,7 @@ public class server {
                 throw new FileNotFoundException("File not found by name: " + STORE_FILE);
             }
             bos = new BufferedOutputStream(fos);
-            bytesRead = is.read(myByteArray, 0, myByteArray.length);
+            is.read(myByteArray, 0, myByteArray.length);
 
             // Decrypt the AES password using server's private key
             byte[] decryptedPass = performRSAPrivateDecryption(myByteArray, privKey);
@@ -85,7 +94,7 @@ public class server {
 
             // AES decryption in CBC mode
             performAESDecryption(password, is, bos);
-            System.out.println("Generated " + STORE_FILE + " (" + bytesRead + " bytes read)");
+            System.out.println("Generated decrypted file named: " + STORE_FILE + ".");
 
             // Validate signature
             byte[] buffer = new byte[256];
@@ -124,7 +133,8 @@ public class server {
 
     private static void decryptFile(char[] password, InputStream inputStream, OutputStream outputStream) throws IOException,
             crypto.InvalidPasswordException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
-                    InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, ShortBufferException {
+                    InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, ShortBufferException,
+                        InvalidKeySpecException {
 
         // Read in ciphertext file size
         byte[] sizeBytes = new byte[Long.SIZE / Byte.SIZE];
@@ -184,6 +194,10 @@ public class server {
             throw new crypto.RSAPublicDecryptionException("Illegal block size.");
         } catch (BadPaddingException e) {
             throw new crypto.RSAPublicDecryptionException("Bad padding.");
+        } catch (InvalidKeySpecException e) {
+            throw new crypto.RSAPublicDecryptionException("Invalid key spec.");
+        } catch (ClassNotFoundException e) {
+            throw new crypto.RSAPublicDecryptionException("Class not found: BigInteger.");
         }
         return decrypted;
     }
@@ -206,6 +220,10 @@ public class server {
             throw new crypto.RSAPrivateDecryptionException("Illegal block size");
         } catch (BadPaddingException e) {
             throw new crypto.RSAPrivateDecryptionException("Bad padding.");
+        } catch (InvalidKeySpecException e) {
+            throw new crypto.RSAPrivateDecryptionException("Invalid key spec");
+        } catch (ClassNotFoundException e) {
+            throw new crypto.RSAPrivateDecryptionException("Class not found: BigInteger.");
         }
         return decryptedPass;
     }
@@ -234,6 +252,8 @@ public class server {
             throw new crypto.AESDecryptionException("Bad padding");
         } catch (ShortBufferException e) {
             throw new crypto.AESDecryptionException("Short buffer");
+        } catch (InvalidKeySpecException e) {
+            throw new crypto.AESDecryptionException("Invalid key spec");
         }
     }
 
