@@ -22,7 +22,15 @@ Written by Evan O'Connor (eco2116)
    ```<server privkey>``` will apply.
   * Sample execution: ```java server 13267 t server_private.key client_public.key```
 
-2. 
-
+2. Next, the client will connect to the server by running in another terminal window or on another machine, 
+   ```java client <password> <filename> <server IP> <port> <server pubkey> <client privkey>```
+  * ```<password>``` is the 16 character password used for AES encryption (only alphanumeric characters accepted)
+  * ```<server IP>``` is the server's IP address or name
+  * ```<port>``` is the port number to use when contacting the server.
+  * ```<server pubkey>``` is the location of the file storing the server's public RSA key. The same restrictions as 
+   ```<server privkey>``` from the server will apply.
+  * ```<client privkey>``` is the location of the file storing the client's private RSA key. The same restrictions as 
+   ```<server privkey>``` from the server will apply.
+  * Sample execution: ```java client 0123456789ABCDEF test 127.0.0.1 13267 server_public.key client_private.key```
 
 
