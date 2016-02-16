@@ -2,7 +2,7 @@
 
 Written by Evan O'Connor (eco2116)
 
-### Compiling and running my program:
+### Compiling and running my program
 
 **Compiling**
 
@@ -39,5 +39,29 @@ Written by Evan O'Connor (eco2116)
   * ```<client privkey>``` is the location of the file storing the client's private RSA key. The same restrictions as 
    ```<server privkey>``` from the server will apply.
   * Sample execution: ```java client 0123456789ABCDEF test 127.0.0.1 13267 server_public.key client_private.key```
+
+### Implementation Details
+
+**crypto**
+
+```crypto.java``` is a helper class containing static methods, custom exceptions, and a nested class to store AES keys. 
+
+The one nested class I implemented is:
+* ```Keys``` which stores two secret keys, one of which is used as the AES encryption key and the other which is used for
+  authentication.
+
+The helper functions I implemented are:
+* ```generateKeysFromPassword``` uses a pseudorandom salt, a given number of iterations, the client's password to generate authentication and encryption keys to be used for AES encryption.
+* ```encryptRSAPublic``` and ```encryptRSAPrivate``` handle RSA encryption using public and private keys, respectively. They do so by reading from the key files and utilizing a ```Cipher``` in encrypt mode.
+* ```decryptRSAPublic``` and ```decryptRSAPrivate``` handle RSA decryption using public and private keys, respectively. They do so by reading from the key files and utilizing a ```Cipher``` in decrypt mode.
+* ```readPublicKey``` and ```readPrivateKey``` handle reading public and private keys from the key files. The keys' modulus
+and exponent are serialized and stored as ```BigInteger```s so any other key file format will fail. They use the appropriate key specs and key factories to generate Java ```PublicKey``` or ```PrivateKey``` objects from the deserialized data.
+
+
+
+
+
+
+
 
 
