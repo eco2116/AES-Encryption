@@ -56,9 +56,19 @@ The helper functions I implemented are:
 * ```decryptRSAPublic``` and ```decryptRSAPrivate``` handle RSA decryption using public and private keys, respectively. They do so by reading from the key files and utilizing a ```Cipher``` in decrypt mode.
 * ```readPublicKey``` and ```readPrivateKey``` handle reading public and private keys from the key files. The keys' modulus
 and exponent are serialized and stored as ```BigInteger```s so any other key file format will fail. They use the appropriate key specs and key factories to generate Java ```PublicKey``` or ```PrivateKey``` objects from the deserialized data.
+* ```generateHash``` uses a ```MessageDigest``` object to generate a hash of the data in a given file. While this method is
+agnostic to the hashing algorithm used, this client server model I have created uses SHA-256.
 
-
-
+The custom exceptions that I created are:
+* ```InvalidPasswordException``` indicates that the password sent to the server was compromised using the authorization key
+* ```RSAPrivateDecryptionException``` indicates failure during RSA decryption using a private key
+* ```RSAPrivateEncryptionException``` indicates failure during RSA encryption using a private key
+* ```RSAPublicDecryptionException``` indicates a failure during RSA decryption using a public key
+* ```RSAPublicEncryptionException``` indicates a failure during RSA encryption using a public key
+* ```HashingException``` indicates a failure while hashing data
+* ```AESDecryptionException``` indicates a failure during AES decryption
+* ```AESEncryptionException``` indicates a failure during AES encryption
+* ```SocketException``` indicates a client is trying to connect to a closed socket
 
 
 
