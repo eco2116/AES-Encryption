@@ -21,7 +21,8 @@ Written by Evan O'Connor (eco2116)
 2. First, we spin up the server by running ```java server <port> <mode> <server privkey> <client pubkey>```
   * ```<port>``` is the port number on which the server will listen for a connection from the client
   * ```<mode>``` is a single lowercase letter, either t or u. t indicates trusted mode and u indicates untrusted 
-  mode (file gets replaced)
+  mode (file gets replaced). If using untrusted mode, ```fakefile``` must exist and the server will attempt to verify
+  the signature using this file.
   * ```<server privkey>``` is the location of the file storing the server's private RSA key. The user should provide the 
   file path relative to the directory where the executable is being run. This key must be generated using the ```generatekeys```
   main function and the file extension will be ```.key```
@@ -70,7 +71,22 @@ The custom exceptions that I created are:
 * ```AESEncryptionException``` indicates a failure during AES encryption
 * ```SocketException``` indicates a client is trying to connect to a closed socket
 
+**generatekeys**
 
+```generatekeys.java``` is a main function used to generate the public and private keys for either the server or client
+that are necessary to run the server and the client, using the following functions:
+
+* ```main``` takes in one argument, either client or server. If client is chosen, ```client_public.key``` and ```client_private.key``` are generated (likewise for server). The function is agnostic to the modulus size, but my
+implementation uses a 2048-bit modulus.
+* ```saveToFile``` handles the serialization and storing of the ```BigInteger``` objects that represent the key's
+modulus and exponent. This will overwrite previously existing files with new key values.
+* ```validationFailure``` handles validation of the input parameters.
+
+**server and client**
+```server.java``` and ```client.java``` are implemented directly following the assignment description (using Java's built-in security and crypto libraries).
+* Maximum file size is 1MB.
+* To generate an AES key from the client's password, I chose to use the ```PBKDF2WithHmacSHA1``` secret key spec.
+* AES encryption is done in CBC mode using the ```PKCS5Padding``` cipher spec for padding.
 
 
 
