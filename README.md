@@ -6,7 +6,7 @@ Written by Evan O'Connor (eco2116)
 
 **Compiling**
 
-```cd``` into directory containing files and run
+```cd``` into directory containing Java files and run
 ```javac *.java```
 
 **Running**
@@ -18,7 +18,7 @@ Written by Evan O'Connor (eco2116)
   * All of these four files must exist (in the same directory as the executables) in order to proceed to the server and    client.
   * Sample execution: ```java generatekeys client```
 
-2. First, we spin up the server by running ```java server <port> <mode> <server privkey> <client pubkey>```
+2. We spin up the server by running ```java server <port> <mode> <server privkey> <client pubkey>```
   * ```<port>``` is the port number on which the server will listen for a connection from the client
   * ```<mode>``` is a single lowercase letter, either t or u. t indicates trusted mode and u indicates untrusted 
   mode (file gets replaced). If using untrusted mode, ```fakefile``` must exist and the server will attempt to verify
@@ -56,12 +56,12 @@ The helper functions I implemented are:
 * ```encryptRSAPublic``` and ```encryptRSAPrivate``` handle RSA encryption using public and private keys, respectively. They do so by reading from the key files and utilizing a ```Cipher``` in encrypt mode.
 * ```decryptRSAPublic``` and ```decryptRSAPrivate``` handle RSA decryption using public and private keys, respectively. They do so by reading from the key files and utilizing a ```Cipher``` in decrypt mode.
 * ```readPublicKey``` and ```readPrivateKey``` handle reading public and private keys from the key files. The keys' modulus
-and exponent are serialized and stored as ```BigInteger```s so any other key file format will fail. They use the appropriate key specs and key factories to generate Java ```PublicKey``` or ```PrivateKey``` objects from the deserialized data.
+and exponent are serialized and stored as ```BigInteger``` objects so any other key file format will fail. They use the appropriate key specs and key factories to generate Java ```PublicKey``` or ```PrivateKey``` objects from the deserialized data.
 * ```generateHash``` uses a ```MessageDigest``` object to generate a hash of the data in a given file. While this method is
 agnostic to the hashing algorithm used, this client server model I have created uses SHA-256.
 
 The custom exceptions that I created are:
-* ```InvalidPasswordException``` indicates that the password sent to the server was compromised using the authorization key
+* ```InvalidPasswordException``` indicates that the password sent to the server was compromised, by using the authorization key
 * ```RSAPrivateDecryptionException``` indicates failure during RSA decryption using a private key
 * ```RSAPrivateEncryptionException``` indicates failure during RSA encryption using a private key
 * ```RSAPublicDecryptionException``` indicates a failure during RSA decryption using a public key
@@ -83,11 +83,20 @@ modulus and exponent. This will overwrite previously existing files with new key
 * ```validationFailure``` handles validation of the input parameters.
 
 **server and client**
+
 ```server.java``` and ```client.java``` are implemented directly following the assignment description (using Java's built-in security and crypto libraries).
 * Maximum file size is 1MB.
 * To generate an AES key from the client's password, I chose to use the ```PBKDF2WithHmacSHA1``` secret key spec.
 * AES encryption is done in CBC mode using the ```PKCS5Padding``` cipher spec for padding.
 
+**Resources**
 
+I used the following online resources to guide me in understanding the assignment and developing this program.
 
-
+* For socket file transfer
+   * http://www.rgagnon.com/javadetails/java-0542.html
+* For AES encryption/decryption
+   * https://www.owasp.org/index.php/Using_the_Java_Cryptographic_Extensions#AES_Encryption_and_Decryption
+* For RSA encryption/decryption
+   * http://www.javamex.com/tutorials/cryptography/rsa_encryption.shtml
+   * https://gist.github.com/dweymouth/11089238
