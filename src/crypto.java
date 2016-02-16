@@ -113,11 +113,13 @@ public class crypto {
         FileInputStream fis = new FileInputStream(file);
         ObjectInputStream oin = new ObjectInputStream(new BufferedInputStream(fis));
 
+        // Read in modulus and exponent as BigIntegers
         BigInteger m = (BigInteger) oin.readObject();
         BigInteger e = (BigInteger) oin.readObject();
         fis.close();
         oin.close();
 
+        // Initialize key spec and generate RSA public key
         RSAPublicKeySpec keySpec = new RSAPublicKeySpec(m, e);
         KeyFactory fact = KeyFactory.getInstance("RSA");
         return fact.generatePublic(keySpec);
@@ -135,7 +137,7 @@ public class crypto {
         fis.close();
         oin.close();
 
-        // Create initialize and generate private key
+        // Initialize key spec and generate RSA private key
         RSAPrivateKeySpec keySpec = new RSAPrivateKeySpec(m, e);
         KeyFactory fact = KeyFactory.getInstance("RSA");
         return fact.generatePrivate(keySpec);
@@ -160,50 +162,59 @@ public class crypto {
         return messageDigest.digest();
     }
 
+    // Indicates a compromised password received by the server
     public static class InvalidPasswordException extends Exception { }
 
+    // Indicates failure during RSA decryption using a private key
     public static class RSAPrivateDecryptionException extends Exception {
         RSAPrivateDecryptionException(String msg) {
             super("RSA Decryption failed using private key: " + msg);
         }
     }
 
+    // Indicates failure during RSA encryption using a private key
     public static class RSAPrivateEncryptionException extends Exception {
         RSAPrivateEncryptionException(String msg) {
             super("RSA Encryption failed using private key: " + msg);
         }
     }
 
+    // Indicates a failure during RSA decryption using a public key
     public static class RSAPublicDecryptionException extends Exception {
         RSAPublicDecryptionException(String msg) {
             super("RSA Decryption failed using public key: " + msg);
         }
     }
 
+    // Indicates a failure during RSA encryption using a public key
     public static class RSAPublicEncryptionException extends Exception {
         RSAPublicEncryptionException(String msg) {
             super("RSA Encryption failed using public key: " + msg);
         }
     }
 
+    // Indicates a failure while hashing data
     public static class HashingException extends Exception {
         HashingException(String msg) {
             super("Hashing failed: " + msg);
         }
     }
 
+    // Indicates a failure during AES decryption
     public static class AESDecryptionException extends Exception {
         AESDecryptionException(String msg) {
             super("AES Decryption failed: " + msg);
         }
     }
 
+    // Indicates a failure during AES encryption
     public static class AESEncryptionException extends Exception {
         AESEncryptionException(String msg) {
             super("AES Encryption failed: " + msg);
         }
     }
 
+    // Indicates a client is trying to connect to a closed socket
     public static class SocketException extends Exception {
         SocketException(String msg) {
             super("Socket failure: " + msg);
