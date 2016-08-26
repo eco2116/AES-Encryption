@@ -1,6 +1,6 @@
-# Network Security - Programming Assignment 1
+# AES Encryption
 
-Written by Evan O'Connor (eco2116)
+Written by Evan O'Connor
 
 ### Compiling and running my program
 
